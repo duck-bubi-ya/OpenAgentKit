@@ -75,6 +75,11 @@
     跳转时同步。**不要再加手动主题开关**（落地页 ThemeToggle 已删、docs 侧
     `themeSwitch={{ enabled: false }}`）——手动切换会与路由语义打架。预览的 `data-kit-theme`
     跟随 resolvedTheme，两套主题下都验过。
+19. **GitHub Pages 子路径**：部署 workflow 注入 `NEXT_PUBLIC_BASE_PATH`，Next `basePath` 由
+    `next.config.mjs` 读取。`next/link` 会自动加前缀；iframe、原生 `<a>`、MDX 图片等必须经
+    `lib/base-path.ts` 的 `withBasePath()`，路由判断使用 `stripBasePath()`。新增原生绝对地址
+    时同步跑一次 `NEXT_PUBLIC_BASE_PATH=/OpenAgentPack-Kit pnpm --filter storybook build`，
+    并在子路径静态站点上跑 e2e。
 
 ## 加一篇文档时
 

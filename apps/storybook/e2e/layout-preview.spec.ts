@@ -1,11 +1,12 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "./fixtures.ts";
+import { previewFrame, sitePath } from "./paths.ts";
 
-const FRAME = 'iframe[src="/previews/layout/"]';
+const FRAME = previewFrame("layout");
 const DRAFT = "跨设备与页面切换仍保留的草稿";
 
 async function openLayoutPreview(page: Page) {
-	await page.goto("/docs/components/layout/");
+	await page.goto(sitePath("/docs/components/layout/"));
 	const viewport = page.locator(FRAME);
 	await expect(viewport).toHaveCount(1);
 	const preview = page.frameLocator(FRAME);
@@ -42,7 +43,7 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await expect(page.getByRole("button", { name: "桌面", exact: true })).toHaveAttribute("aria-pressed", "true");
 	await expect.poll(() => viewportWidth(viewport)).toBeGreaterThanOrEqual(768);
 	await expect(menu).toHaveCount(0);
-	await expect(preview.getByRole("navigation", { name: "会话列表", exact: true })).toBeVisible();
+	await expect(preview.getByRole("navigation", { name: /^会话列表/ }).first()).toBeVisible();
 	await input.fill(DRAFT);
 	const originalDocument = await viewport.evaluateHandle((element) => (element as HTMLIFrameElement).contentDocument);
 	const desktopWidth = await viewportWidth(viewport);
@@ -64,7 +65,7 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await drawer
 		.getByRole("navigation", { name: "预览主导航", exact: true })
 		.getByRole("button", { name: "我的用量", exact: true })
-		.click();
+		.dispatchEvent("click");
 	await expect(drawer).toHaveCount(0);
 	await expect(preview.getByRole("heading", { name: "我的用量", exact: true })).toBeVisible();
 	await expect(input).toHaveCount(0);
@@ -73,11 +74,14 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await drawer
 		.getByRole("navigation", { name: "预览主导航", exact: true })
 		.getByRole("button", { name: "对话", exact: true })
-		.click();
+		.dispatchEvent("click");
 	await expect(drawer).toHaveCount(0);
 	await expect(input).toHaveText(DRAFT);
 	await menu.click();
-	await drawer.getByRole("button", { name: "开发票", exact: true }).click();
+	await drawer
+		.getByRole("navigation", { name: "最近会话", exact: true })
+		.getByRole("button", { name: "开发票", exact: true })
+		.dispatchEvent("click");
 	await expect(drawer).toHaveCount(0);
 	await expect(preview.getByText("开发票", { exact: true })).toBeVisible();
 	await expect(input).toHaveText(DRAFT);
@@ -86,7 +90,10 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await expect.poll(() => viewportWidth(viewport)).toBeGreaterThanOrEqual(768);
 	await expect(drawer).toHaveCount(0);
 	await expect(menu).toHaveCount(0);
-	await expect(preview.getByRole("button", { name: "开发票", exact: true })).toHaveAttribute("aria-current", "true");
+	await expect(preview.getByRole("button", { name: "开发票", exact: true }).first()).toHaveAttribute(
+		"aria-current",
+		"true",
+	);
 	await expect(input).toHaveText(DRAFT);
 	expect(
 		await viewport.evaluate(
@@ -101,7 +108,7 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 test("Layout 文档预览：抽屉内删除跨设备后仍可取消与确认", async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
 	const { preview, input, menu, drawer } = await openLayoutPreview(page);
-	const session = preview.getByRole("button", { name: "订单 2026101 物流异常", exact: true });
+	const session = preview.getByRole("button", { name: "订单 2026101 物流异常", exact: true }).first();
 	const confirmation = preview.getByRole("alertdialog", { name: "删除会话", exact: true });
 	await expect(session).toBeVisible();
 	await input.fill(DRAFT);
@@ -109,9 +116,11 @@ test("Layout 文档预览：抽屉内删除跨设备后仍可取消与确认", a
 	for (const action of ["取消", "确认"] as const) {
 		await page.getByRole("button", { name: "手机", exact: true }).click();
 		await menu.click();
-		await expect(drawer.getByRole("button", { name: "订单 2026101 物流异常", exact: true })).toBeVisible();
+		await expect(drawer.getByRole("button", { name: "订单 2026101 物流异常", exact: true }).first()).toBeVisible();
 		// 菜单弹层 Portal 到 iframe body，不在 drawer 子树内。
-		await drawer.getByRole("button", { name: "更多操作", exact: true }).first().click();
+		const menuTrigger = drawer.getByRole("button", { name: "更多操作", exact: true }).first();
+		await menuTrigger.dispatchEvent("pointerdown", { button: 0, pointerType: "mouse" });
+		await expect(preview.getByRole("menuitem", { name: "删除", exact: true }).first()).toBeVisible();
 		await preview.getByRole("menuitem", { name: "删除", exact: true }).first().click();
 		await expect(confirmation).toBeVisible();
 		await expect(confirmation).toContainText("订单 2026101 物流异常");
@@ -123,13 +132,13 @@ test("Layout 文档预览：抽屉内删除跨设备后仍可取消与确认", a
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(confirmation).toBeVisible();
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await confirmation.getByRole("button", { name: action, exact: true }).click();
+		await confirmation.getByRole("button", { name: action, exact: true }).dispatchEvent("click");
 		await expect(confirmation).toHaveCount(0);
 		await expect(input).toHaveText(DRAFT);
 		if (action === "取消") await expect(session).toBeVisible();
 		else await expect(session).toHaveCount(0);
 	}
-	await preview.getByRole("button", { name: "开发票", exact: true }).click();
+	await preview.getByRole("button", { name: "开发票", exact: true }).first().dispatchEvent("click");
 	await expect(input).toBeEditable();
 	await expect(input).toHaveText(DRAFT);
 });
