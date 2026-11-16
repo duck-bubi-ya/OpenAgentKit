@@ -7,12 +7,14 @@ apps/            可运行应用（server / web / console / storybook）
 packages/        可复用包（sdk / chat-ui / eval）
 assets/          生成产物（当前为 assets/skills；dist 不入库）
 docs/            权威文档（见 AGENTS.md 权威顺序）+ adr/ research/
-scripts/         仓库级脚本（dev、kit、skills、check-docs、check-no-inner-deps、lint-changed、build-release）
+scripts/         仓库级脚本（start、dev、kit、skills、check-docs、check-no-inner-deps、lint-changed、build-release）
 .githooks/       本地 hook（core.hooksPath）；完整本地验收使用 pnpm gate
 ```
 
 - 上游 SDK 使用 npm 正式发布的 `@openagentpack/sdk@0.10.0`，由精确版本与
   `pnpm-lock.yaml` integrity 锁定。
+- `scripts/start.mjs` 提供 `pnpm start`：仅在根 `.env` 不存在时交互配置 Mock / 真实百炼并生成
+  管理员令牌，已有文件原样复用；完成后接续 `scripts/dev.mjs` 的依赖构建与启动流程。
 - `scripts/build-release.mjs` 负责构建四个部署目标并收集后端生产依赖；产物放在被忽略的
   `.scratch/releases/kit-*`，不把 `.env` 或本地数据库纳入发布产物。
 - `scripts/kit/` 承载组件复制与组件目录命令：`kit:add`、`catalog:list`。

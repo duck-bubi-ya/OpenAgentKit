@@ -7,6 +7,7 @@
 
 | 层 | 命令 | 覆盖 |
 | --- | --- | --- |
+| 仓库脚本 | `pnpm test:scripts` | 首次配置、既有 `.env` 不变、取消 / 并发保护、依赖构建与服务启动顺序、组件复制 |
 | SDK 数据层 | `pnpm --filter @openagentpack/kit-sdk test` | SSE 帧编解码、快照归并、`event_id` 去重、重连与 `after` 续传、工具审批、确认令牌 |
 | chat-ui | `pnpm --filter @openagentpack/kit-chat-ui test` | 消息渲染、执行过程、附件与快捷指令、审批交互、空态与禁用态 |
 | server | `pnpm --filter @openagentpack/kit-server test` | 路由与权限、身份归属、确认闸门、事件不落库、OpenAPI 一致性 |
@@ -54,10 +55,10 @@ pnpm --filter storybook prebuild
 `pnpm --filter storybook build` 生成静态 `out/` 和搜索索引。包、页数与版本以当前清单及产物为准，
 不以旧 CI 子树、历史包名或固定页数作为验收条件。
 
-Mock 端到端：
+Mock 端到端（首次选择 Mock；已有 `.env` 时先确认 `KIT_GATEWAY=mock`）：
 
 ```bash
-KIT_GATEWAY=mock pnpm dev
+pnpm start
 ```
 
 Playwright：
