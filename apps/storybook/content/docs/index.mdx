@@ -9,8 +9,8 @@ OpenAgentPack Kit 是一套搭建 **百炼 Managed Agent 体验页与管理端**
 管理员在管理端配置智能体模版、准备运行资源、预览调试并上架；成员登录体验页后，
 从广场选择已上架的智能体进行对话、处理工具审批、查看文件产物与个人用量。
 
-Kit 包含可自托管的 Node server、可独立接入的会话运行时与 React hooks、copy-in UI
-组件，以及项目脚手架。文档组织参考 [ai-sdk.dev](https://ai-sdk.dev)，事件契约直接复用
+Kit 包含可自托管的 Node server、可独立接入的会话运行时与 React hooks，以及 copy-in UI
+组件。文档组织参考 [ai-sdk.dev](https://ai-sdk.dev)，事件契约直接复用
 `@openagentpack/sdk` 的 `SessionEvent`；Kit 负责连接、状态编排和界面展示，不另造一套事件模型。
 
 ## 可以怎样使用
@@ -18,7 +18,7 @@ Kit 包含可自托管的 Node server、可独立接入的会话运行时与 Rea
 - **运行完整应用**：使用仓库内的体验页、管理端和 server，按[快速开始](/docs/quickstart)
   启动本地 Mock 服务。模版创建、成员对话、扩展能力与真实 Cloud 模式见[本地跑通完整 Demo](/docs/local-demo)。
 - **搭建自己的页面**：复用 React hooks 和[组件总览](/docs/components)中的组件，也可通过
-  `pnpm kit:add <component>` 将组件及依赖源码复制到项目中修改。
+  `pnpm kit:add <component> --dir <project>` 将组件及依赖源码复制到项目中修改。
 - **接入已有百炼后端**：按 [SDK 与 Kit 数据接入](/docs/sdk) 提供 ChatProvider，
   接入已转换事件或百炼原始 SSE；消息、输入、审批等组件沿用同一套契约。
 
@@ -50,7 +50,7 @@ Kit 包含可自托管的 Node server、可独立接入的会话运行时与 Rea
 | SDK | `@openagentpack/kit-sdk` | 数据处理：Stream / Request / Provider / Chat、Controller、消息快照与线程/产物归并、KitClient；React hooks 位于 `/chat/hooks`、`/sessions/hooks` 等功能子入口 |
 | UI 组件 | `@openagentpack/kit-chat-ui` | copy-in 布局、消息、输入、附件、文件卡、审批与辅助组件；共享 Tailwind v4 与主题 token |
 | 服务端 | `@openagentpack/kit-server` | Hono 应用工厂，提供数据面 `/api/kit/*`、控制面 `/api/admin/*` 及成员登录服务 |
-| 仓库脚本 | 根 `scripts/kit/` | `pnpm kit:create`、`pnpm kit:add`、`pnpm catalog:list` |
+| 仓库脚本 | 根 `scripts/kit/` | `pnpm kit:add`、`pnpm catalog:list` |
 | 开发指南 | 根 `scripts/skills/` | 组件组合、会话交互与后端接入的英文 Skill 源、生成参考和可编译示例 |
 | 评测 | `@openagentpack/kit-eval` | Skill 触发/质量评测、远端运行与报告 |
 
@@ -72,7 +72,7 @@ UI 栈按用途区分：管理端的表单、表格等使用 antd v6；体验页
 
 ## 交付与验证状态
 
-- 核心套件、文档站、脚手架与静态部署产物已可用。Kit 包仍标记为 `private`；
+- 核心套件、文档站、组件复制工具与静态部署产物已可用。Kit 包仍标记为 `private`；
   本站示例面向 workspace 与源码集成，不表示已正式发布 npm 包。
 - Mock、组件预览、浏览器回归与真实 Cloud 验证分别执行，某次本地测试通过不代表所有能力都已完成 Cloud 联调。
   具体范围以仓库测试套件与 CI 结果为准。

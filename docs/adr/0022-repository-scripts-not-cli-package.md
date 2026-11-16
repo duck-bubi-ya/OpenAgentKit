@@ -1,7 +1,8 @@
 # ADR-0022：仓库命令归入 scripts，不再维护独立 CLI 包
 
 > `pnpm mobile:pack` 已由 [ADR-0024](./0024-desktop-app-and-remove-mobile-ci-templates.md) 删除；
-> 桌面打包链路也已于 2026-11-13 移除。其余仓库脚本与脚手架的归属决策仍然有效。
+> 桌面打包链路也已于 2026-11-13 移除；`templates/` 与 `pnpm kit:create` 已于 2026-11-16 移除。
+> 当前保留 `pnpm kit:add` 与 `pnpm catalog:list`；仓库脚本的归属决策仍然有效。
 
 ## 背景
 

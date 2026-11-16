@@ -6,7 +6,6 @@
 apps/            可运行应用（server / web / console / storybook）
 packages/        可复用包（sdk / chat-ui / eval）
 assets/          生成产物（当前为 assets/skills；dist 不入库）
-templates/       脚手架源模板（web-experience）
 docs/            权威文档（见 AGENTS.md 权威顺序）+ adr/ research/
 scripts/         仓库级脚本（dev、kit、skills、check-docs、check-no-inner-deps、lint-changed、build-release）
 .githooks/       本地 hook（core.hooksPath）；完整本地验收使用 pnpm gate
@@ -16,9 +15,10 @@ scripts/         仓库级脚本（dev、kit、skills、check-docs、check-no-in
   `pnpm-lock.yaml` integrity 锁定。
 - `scripts/build-release.mjs` 负责构建四个部署目标并收集后端生产依赖；产物放在被忽略的
   `.scratch/releases/kit-*`，不把 `.env` 或本地数据库纳入发布产物。
-- `scripts/kit/` 承载仓库内脚手架命令：`kit:create`、`kit:add`、`catalog:list`。
+- `scripts/kit/` 承载组件复制与组件目录命令：`kit:add`、`catalog:list`。
   它不是 workspace 包，不发布 npm，也不提供独立 bin；外部可分发 CLI 的
-  决策见 ADR-0022。`create` 生成的项目会得到指向本仓库脚本的 `pnpm kit:add` 命令。
+  决策见 ADR-0022。在仓库根目录运行 `pnpm kit:add <component> --dir <project>`，
+  将组件源码复制到已有项目。
 
 ## 包内
 
@@ -285,19 +285,6 @@ sessionStorage 和页面闸门，不复制 HTTP / SSE 认证逻辑。
 完整数值提示，不参与计量与准入判断；边界及舍入合同由同目录测试保护。
 `lib/beijing-time.ts` 统一用户端绝对时间的北京时间转换与服务端聚合日起点展示；
 同目录测试覆盖跨日、跨年与无效时间，浏览器在其他时区验证输出仍固定为北京时间。
-
-## templates/web-experience（脚手架源模板）
-
-```
-src/features/auth/        成员登录表单与 sessionStorage 闸门
-src/lib/host.ts           模板真实需要的宿主保存能力
-src/lib/kit.ts            SDK / chat-ui 装配
-src/app.tsx / main.tsx    最小体验页入口
-```
-
-- 仅作为 `pnpm kit:create` 的复制源，不是 workspace 应用；生成时会写入 `kit.repo.json`、
-  改 tsconfig 与 Tailwind `@source` 路径，并注入 `pnpm kit:add`。
-- 模板只保留可独立 install → typecheck → build 的最小体验页。
 
 ## 不放这里的东西
 

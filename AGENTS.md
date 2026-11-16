@@ -15,8 +15,7 @@ skill 或个人环境；所有产品代码、配置和测试写入本目录。
 4. `docs/interfaces.md`：跨层接口与 op 对照表（新增后端操作的唯一真相）；
 5. `docs/protocol.md`：SSE 帧、重连、去重、错误模型；
 6. `docs/validation.md`：验收矩阵与真实 Cloud 规则；
-7. 包级 `AGENTS.md`（`packages/*/AGENTS.md`、`apps/*/AGENTS.md`、
-   `templates/*/AGENTS.md`）：该包局部约定。
+7. 包级 `AGENTS.md`（`packages/*/AGENTS.md`、`apps/*/AGENTS.md`）：该包局部约定。
 
 历史实现（百炼 Managed Agent 控制台前端、早期体验站原型与旧版服务端）只作为设计参考与
 历史教训，不是本规范，也不要从中复制代码。
@@ -59,7 +58,7 @@ skill 或个人环境；所有产品代码、配置和测试写入本目录。
 3. **破坏性/不可逆操作**（apply、destroy、publish、下架、删除会话）必须使用 AlertDialog
    语义组件，不得使用普通 Dialog，且必须先展示 plan diff。
 4. **新组件进入 chat-ui 的门槛**：必须有至少一个真实调用方（`apps/web`、`apps/console`、
-   `apps/storybook` 或 templates）。只为准需求预建组件库是过度设计。
+   `apps/storybook`）。只为准需求预建组件库是过度设计。
 5. **组件不得依赖 server**，也不得在组件内部直接 `fetch`；数据一律经 SDK 各功能模块公开的 `/hooks`。
 6. **组件状态变化必须有过渡动效**（弹层、展开/收起、入场、悬停等，目标是丝滑不生硬）：统一
    消费 `theme.css` 冻结的 `--kit-duration-*` / `--kit-ease-out` / `--kit-animate-*` token 与

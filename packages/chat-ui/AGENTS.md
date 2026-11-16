@@ -8,7 +8,7 @@
 3. **可 copy-in**：每个组件文件自包含（仅依赖 registry.json 里声明的 deps），复制进用户
    项目后不依赖 monorepo 内部路径。
 4. **破坏性操作 UI 必须 AlertDialog 语义**（见 `apps/console` 的确认弹窗）。
-5. **新组件门槛**：至少一个真实调用方（apps/web、apps/console、templates）。
+5. **新组件门槛**：至少一个真实调用方（apps/web、apps/console、apps/storybook）。
 6. **不得嵌套交互元素**（`<button>` 内不能再有 `<button>`/`<a>`）：Chrome 对**真实点击**会把
    激活行为交给最外层的可激活元素，内层按钮的 `onClick` 永远不触发；而合成 `el.click()`
    却能触发——所以这类 bug 只有真实点击的 E2E（或真机）能抓到。行内多操作用

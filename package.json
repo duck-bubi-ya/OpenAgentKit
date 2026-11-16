@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "OpenAgentPack Kit — 搭建 managed-agent 体验页的全栈套件（自研协议 + headless hooks + copy-in 组件 + Node server + 脚手架）",
+  "description": "OpenAgentPack Kit — 搭建 managed-agent 体验页的全栈套件（自研协议 + headless hooks + copy-in 组件 + Node server）",
   "license": "Apache-2.0",
   "packageManager": "pnpm@9.15.9",
   "engines": {
@@ -14,7 +14,6 @@
     "dev": "node scripts/dev.mjs",
     "build": "turbo run build",
     "build:release": "node scripts/build-release.mjs",
-    "kit:create": "node scripts/kit/create-project.mjs",
     "kit:add": "node scripts/kit/add-component.mjs",
     "catalog:list": "node scripts/kit/catalog-list.mjs",
     "eval": "node packages/eval/dist/bin.js",

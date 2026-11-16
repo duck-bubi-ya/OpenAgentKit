@@ -1,5 +1,8 @@
 # ADR-0024：desktop 归入 apps，移除移动壳与 CI 示例模板
 
+> 状态更新（2026-11-16）：已移除 `templates/` 与 `pnpm kit:create` 项目生成链路。
+> 自定义前端继续复用 SDK、React hooks 与 chat-ui 组件；下文保留此前决策的历史原文。
+
 > 状态更新（2026-11-13）：Electron 桌面壳及其开发、冒烟与打包链路也已移除。
 > 当前应用为 server、web、console 与 docs；保留 Web / H5、`web-experience` 脚手架模板
 > 和自定义宿主接入约定。下文保留此前目录迁移与移动壳退役的决策原文。
