@@ -1,143 +1,136 @@
 # OpenAgentPack-Kit Agent 规则
 
-本文件适用于当前独立仓库的全部工作。执行和验收不依赖父目录的文档、workspace、全局
-skill 或个人环境；所有产品代码、配置和测试写入本目录。
+本文件适用于当前独立仓库的全部工作，供人类维护者和 coding agent 共同使用。
+产品代码、配置、测试及验收依据均留在本仓库，不依赖父目录、全局 Skill 或个人环境。
 
-人类读者与 coding agent 读者同等对待：本文件是入口，权威细节在下面列出的文档里。
+## 先读什么
 
-## 权威顺序
+现行规则按以下顺序解决冲突；已标记退役、替代的 ADR 正文仅作历史背景。
 
-执行本目录工作时按以下顺序解决冲突，靠前的胜出：
+1. [已接受的 ADR 及状态更新](docs/adr/README.md)：架构决策与已批准的例外。
+2. [架构](docs/architecture.md)：进程、分层、依赖方向和 UI 边界。
+3. [目录规则](docs/repository-layout.md)：源码、测试、生成物和 AGENTS.md 的归属。
+4. [接口](docs/interfaces.md)：跨层合同与后端 op 对照表。
+5. [协议](docs/protocol.md)：SSE、恢复、去重、错误与确认令牌。
+6. [验收](docs/validation.md)：风险驱动验证、本地门禁和真实 Cloud 规则。
+7. 适用目录的 `AGENTS.md`：局部不变量、修改步骤和验证入口；不能覆盖以上规则。
 
-1. `docs/adr/`：已接受且难以撤销的决策；
-2. `docs/architecture.md`：进程、分层、依赖方向；
-3. `docs/repository-layout.md`：源码与测试放置；
-4. `docs/interfaces.md`：跨层接口与 op 对照表（新增后端操作的唯一真相）；
-5. `docs/protocol.md`：SSE 帧、重连、去重、错误模型；
-6. `docs/validation.md`：验收矩阵与真实 Cloud 规则；
-7. 包级 `AGENTS.md`（`packages/*/AGENTS.md`、`apps/*/AGENTS.md`）：该包局部约定。
+代码与现行规范冲突时，先核对实际合同及历史替代关系，再同步拥有该规则的权威文档；
+不能仅因旧实现存在就恢复旧架构。历史控制台及早期原型不作为复制代码的来源。
 
-历史实现（百炼 Managed Agent 控制台前端、早期体验站原型与旧版服务端）只作为设计参考与
-历史教训，不是本规范，也不要从中复制代码。
+## 当前目录与开发入口
+
+| 目录 | 职责 |
+| --- | --- |
+| `apps/server` | Hono 服务端、Provider gateway、身份、确认与本地索引 |
+| `apps/web` | Web / H5 体验页，静态 CSR |
+| `apps/console` | 管理端，控制面客户端及业务 hooks |
+| `apps/storybook` | Fumadocs 文档站、真实组件预览与静态下载 |
+| `packages/sdk` | 按功能组织的数据 SDK、协议、Provider 和可选 React hooks |
+| `packages/chat-ui` | 可 copy-in 的 Chat 产品组件、主题与 registry |
+| `packages/eval` | Node 侧 Skill 评测库及命令入口 |
+| `scripts/skills` / `assets/skills` | 英文开发 Skill 的人工源及生成物 |
+| `scripts/kit` | 组件复制与组件目录脚本 |
+| `docs` / `.scratch` | 权威文档与研究 / 被忽略的临时探针、日志、截图 |
+
+- Node.js 要求以根 `engines` 为准（当前 ≥24）；pnpm 版本以根 `packageManager` 为准。
+- 开始修改前检查分支、远端、暂存区和工作区，保留其他并行工作的改动。
+- 完整 SDK 公开入口以 `packages/sdk/package.json` 为准；目录映射见目录规则。
+- 工作区只包含 `apps/*` 与 `packages/*`；目录与命令是否可用以当前清单为准，
+  不按历史 ADR 的旧名称恢复已退役的包、原生壳、项目生成器或目录 Project API。
 
 ## 执行红线
 
-遇到以下情况必须停止并记录阻塞（在 PR 描述里写明），
-不得自行改变架构：
+遇到以下需要时停止相关改动并记录阻塞，不能自行放宽边界：
 
-- 需要 runtime import `@openagentpack/sdk` 的 `internal/*` 路径（SDK 只导出公开面；
-  浏览器侧只允许 `import type` 或 `@openagentpack/sdk/session-events` 子路径）；
-- 需要在 `packages/sdk` 的数据入口或 `src/protocol` 子入口引入 React、DOM 或 Node-only API；
-  React 只允许出现在 `packages/sdk/src/hooks/`、`src/providers/kit/react/` 与
-  `chat/sessions/files/agents/usage/auth` 六个功能模块的 `hooks/` 子目录（ADR-0026）；
-- 需要私自定义第二套事件模型，而不是复用 SDK 的 `SessionEvent` 契约；
-- 需要把 `BAILIAN_API_KEY`、vault credential 或任何 provider 凭据下发到浏览器、写入
-  仓库、写进日志或错误消息；
-- 需要绕过 `plan → 显式确认` 闸门执行 `apply` / `destroy` / `publish` / 上下架，或代替
-  用户补 `--yes` / `confirmed: true`；
-- 需要引入内网包（`@ali/*`、`@alife/*`）、内网域名或内网网关私有协议与固定密钥注入；
-  需要在 `apps/console` 之外引入 antd（antd 仅限管理端，见 ADR-0015）；
-- 前端需要假设与 server 同源（必须走 `/api/config` 注入的 `apiBaseUrl`）；
-- 需要把事件正文落库（Provider 是事件与消息的唯一事实权威；SQLite 中的临时资源声明与 SDK state 见 ADR-0017）；
-- 需要为第二个 provider 抽象行为，却还没有它的真实数据面合同。
+- runtime import 上游 `@openagentpack/sdk/internal/*`，或从 Kit SDK 私有源码/构建分片跨包导入。
+  浏览器只允许上游 SDK 的 type-only 主入口及浏览器安全的 `session-events` 子路径。
+- 在 SDK 数据入口或 `src/protocol` 引入 React、DOM 或 Node-only API。
+  React 仅允许位于六个功能模块的 `hooks/`、通用 `src/hooks/` 与
+  `src/providers/kit/react/`（ADR-0026）。
+- 另造事件模型，或把 Provider 事件、消息正文写入 SQLite。共享事件使用上游 `SessionEvent`；
+  临时 YAML、SDK state 与成功证明的存储例外见 ADR-0017/0018。
+- 将 Provider key、Vault credential 下发到浏览器，写入仓库、日志、错误或持久化声明。
+  Provider 配置显式传入 SDK，运行链路不得改写进程全局环境变量。
+- 绕过 `plan → 显式确认` 执行高风险远端操作，代填 `--yes` 或 `confirmed: true`，
+  或在部分成功、结果未知时自动重发写请求。
+- 引入内网包、内网域名、私有网关或固定密钥注入；在 `apps/console` 之外引入 antd。
+- 前端业务请求假设与 server 同源；后端地址须经运行时配置解析。
+- 尚无第二个 Provider 的真实数据面合同就为它预建行为抽象。
 
-## UI 实现规范
+## UI 与交互
 
-涉及 `packages/chat-ui`、`apps/web`、`apps/console` 的视觉与交互时：
+1. 体验页和所有端的对话链路复用 `@openagentpack/kit-chat-ui`。缺少 Primitive 时按
+   Radix + Tailwind v4 + CVA 补齐，并说明既有组件为何不够；新增组件必须有真实调用方。
+   Console 的管理控件优先 antd v6，按页面渐进迁移，具体边界见 ADR-0015。
+2. Chat UI 与体验页消费 `theme.css` 的冻结颜色、尺寸和动效 token，不在业务组件新增设计常量、
+   内联样式表或 keyframes。Console 的 antd token、全局适配及既有 Less 样式归口见架构文档；
+   文档站视觉层归 `apps/storybook/app/globals.css`。
+3. 接口规定有计划合同的发布、上下架及会话归档/删除，必须保留服务端计划与一次性令牌。
+   Chat UI / Web 使用 AlertDialog；Console 可使用受管焦点、模态和显式确认的 antd Modal。
+   资源发布展示 SDK 差异，限额调整展示配置差异；模版编辑/历史应用确认生效影响并校验
+   `base_version`，不能将其写成 SDK apply 或新增计划接口。模版上下架及删除的单次确认展示
+   以接口和协议文档为准，不推广到其他动作。
+4. 展示组件不直接请求业务接口。共享调用流程使用 SDK 数据模块及各功能 `/hooks`；
+   Console 管理业务位于 `apps/console/src/lib/admin/`，不迁回 SDK。
+5. 动态消息及分片使用 SDK 稳定 ID；禁止用数组下标作为累计快照列表的 key。
+   `noArrayIndexKey` 的静态示例兼容设置不豁免动态数据。
+6. 弹层、折叠、入场及悬停消费冻结动效 token 和 `.kit-collapse`，
+   在 `prefers-reduced-motion` 下降级；不得嵌套交互元素，移动端保留等效操作入口。
 
-1. **优先复用 `@openagentpack/kit-chat-ui` 既有组件**。缺少 Primitive 时，按
-   `@radix-ui/react-*` + Tailwind v4 + CVA 自研，并在 PR 里记录「官方/既有组件为何不够」。
-   `apps/console` 例外（ADR-0015）：新代码 antd v6 优先；但对话链路组件（消费
-   SessionEvent/消息分片/会话状态）一律 kit-chat-ui，例外需在 PR 记录理由；页面已存在
-   且好用的 chat-ui 用法不强制替换，迁移以页面为单位渐进进行。
-2. **所有视觉样式使用 Tailwind 工具类 + `theme.css` 冻结 token**。消息分片会随累计快照替换或删除，
-   必须使用 SDK 提供的稳定分片 id；`noArrayIndexKey` 关闭仅兼容静态示例，不能用于动态快照列表。禁止手写 `.css` 文件
-   或内联 `<style>` 添加样式；业务代码不得引入新的颜色、间距、圆角、阴影等设计常量。
-   console 中 antd 组件的内部样式豁免本条：token 统一归口到 console 唯一的 antd 主题配置
-   文件（对齐管理端中性色板，与 `theme.css` 互不引用），页面级布局样式仍走 Tailwind 工具类。
-3. **破坏性/不可逆操作**（apply、destroy、publish、下架、删除会话）必须使用 AlertDialog
-   语义组件，不得使用普通 Dialog，且必须先展示 plan diff。
-4. **新组件进入 chat-ui 的门槛**：必须有至少一个真实调用方（`apps/web`、`apps/console`、
-   `apps/storybook`）。只为准需求预建组件库是过度设计。
-5. **组件不得依赖 server**，也不得在组件内部直接 `fetch`；数据一律经 SDK 各功能模块公开的 `/hooks`。
-6. **组件状态变化必须有过渡动效**（弹层、展开/收起、入场、悬停等，目标是丝滑不生硬）：统一
-   消费 `theme.css` 冻结的 `--kit-duration-*` / `--kit-ease-out` / `--kit-animate-*` token 与
-   `<details>` 高度过渡基类 `.kit-collapse`，并在 `prefers-reduced-motion` 下整体降级为无动画。
-   时长/缓动/keyframes 同样冻结在 `theme.css`，业务代码不得内联新常量或手写 keyframes。
-7. 修改 chat-ui 后必须运行：`pnpm typecheck`、`pnpm lint`、`pnpm --filter @openagentpack/kit-chat-ui test`，
-   并检查调用方 app 的相关测试。
+## 修改与文档维护
 
-## 文档与工作记录
+- 项目文档使用中文；标识符、命令、Schema 及必要上游原文保留原语言，对外发布时补英文版。
+  开发 Skill 的入口、参考、元数据和示例使用英文（ADR-0027）。
+- 根文件保留全仓规则，局部 AGENTS.md 保留职责、不变量、修改步骤与验收入口。
+  产品合同、页面细节和长期证据分别回到现有权威文档或 `docs/research/`，
+  不创建平行规范或堆积逐次工作记录。
+- 新增后端 op 同步 `docs/interfaces.md`；改协议同步 `docs/protocol.md`；
+  改分层同步 `docs/architecture.md` 与 `.dependency-cruiser.cjs`；
+  难以撤销的决策写 ADR，历史记录通过状态更新说明替代关系。
+- OpenAPI、SDK API 类型、Skill 产物和嵌入示例通过各自生成命令更新，不手改生成区。
+- 验收证据放 PR 描述或交付记录，临时文件放 `.scratch/`；凭据和数据库不提交。
 
-- 新增或大幅修改的项目文档使用中文；标识符、命令、路径、Schema 字段和必要的上游原文
-  保留原语言。对外发布时补英文版。
-- 现行规则只写入上面的权威文档；不要新建平行的「说明文档」承载规范。
-- 长期上游证据（provider 行为、SDK 源码结论、外部调研）放 `docs/research/`；
-  验收证据放 PR 描述或 CI artifact，不提交逐次记录；难以撤销的决策写成
-  `docs/adr/NNNN-*.md`。
-- 临时探针、补丁、截图和个人计划放被 gitignore 的 `.scratch/`，不作为现行规范的依赖。
-- 改了行为就改文档：新增后端操作要同步 `docs/interfaces.md` 的 op 对照表；改协议要同步
-  `docs/protocol.md`；改分层要同步 `docs/architecture.md` 与 `.dependency-cruiser.cjs`。
-  `pnpm check:docs` 会校验文档命令真实存在、每个包都有 `AGENTS.md`，以及
-  `docs/interfaces.md` 的 ✅ 行与 `apps/server/openapi.json` 路径一致。
+## 风险驱动验证
 
-## 风险驱动验证与代码规模
+先明确修改保护的用户流程、合同、业务不变量或恢复路径，再选择最少的代表性用例。
+不为类型保证、简单透传、框架默认行为增加重复测试；详细测试保真要求见验收文档。
+修改前后检查文件职责：生产源码超过 800 行，测试或脚本超过 1000 行时按变化原因评估拆分，
+不按行数机械切分；生成物不计入。
 
-新增或修改测试前，明确它保护的用户流程、业务不变量、模块/Provider 合同、恢复路径或
-历史缺陷；通过公开接口或可观察结果验证。选择最少的代表性成功、拒绝、边界和失败场景；
-删除已失效、依赖实现步骤或与其他层重复的测试。类型保证、简单透传和框架默认行为无需
-独立测试。
+文档改动校验命令、路径和规则语义；运行时代码改动执行相应包与调用方回归。
+Mock / 离线通过不代表真实 Cloud 已验收。Live 必须显式启用，资源使用唯一前缀并按
+验收文档清理，不输出、修改或提交本地凭据。
 
-测试归属与保真：
-
-- Provider HTTP/SSE 合同由 gateway 层测试保护（替换网络响应的 fixture），不要让上层
-  hooks 测试重复断言同一份映射。
-- **静默断流与显式 `done` 是不同场景**：不能用发送 `done` 的 mock 证明自然断流或首帧前
-  订阅完成。
-- 去重与重连测试必须覆盖「历史回放 + 实时流」交叉到达（`event_id` 重复）与
-  `after` 游标续传。
-- 负向断言先证明目标路径可达：权限测试必须显示被限制的资源确实存在；异步 UI 测试必须等
-  初始化与事件处理完成。
-- 闸门测试必须证明「无 confirmation token 时被拒」与「有 token 时通过」两条路径。
-
-修改前后检查目标文件及同目录测试规模。生产源码超过 800 行、测试或脚本超过 1000 行时，
-按变化原因评估职责拆分（不按行数机械切文件）。自动生成文件、lockfile 和构建产物不计入。
-
-## 真实 Cloud 验证
-
-- 可使用本地 `.env`（从 `.env.example` 创建），不得输出、修改或提交凭据；日志与错误
-  消息里的 key 必须脱敏。
-- 测试资源必须使用唯一前缀（如 `kit-live-<yyyymmddHHMM>-`）和测试 metadata；测试完成后
-  删除临时 Session 与 Agent。
-- Provider 因引用关系拒绝删除 Environment 时，按 Provider 正式协议归档，并在 PR 描述或
-  CI artifact 中说明原因。
-- 没有凭据时用 `KIT_GATEWAY=mock` 跑端到端；live 测试默认跳过，由 CI 变量显式启用。
-
-## 常用命令与门禁
+## 常用命令与提交
 
 ```bash
 pnpm install
-pnpm setup              # git config core.hooksPath .githooks
-pnpm dev                # server :8787 + web :5173 + console :5174 + storybook :3000
-pnpm typecheck          # turbo tsc --noEmit + skills
-pnpm lint               # biome check（warning 也挡，等同 lint:strict）
-pnpm test               # 脚本测试 + vitest + skills
-pnpm build              # turbo 构建各包与应用（tsup / vite / next）
-pnpm check:architecture # dependency-cruiser 分层与依赖方向
-pnpm check:docs         # 文档命令 + interfaces 对照表 + 包级 AGENTS.md
-pnpm check:no-inner-deps # 内网包与内网域名扫描
-pnpm gen:openapi        # 生成 apps/server/openapi.json 与 SDK API 类型
-pnpm gate               # 完整本地门禁（= typecheck+lint+test+build+三项 check）
-pnpm verify:push        # pre-push hook 跑的子集
+pnpm setup              # 可选：启用仓库 .githooks
+pnpm dev                # server :8787 / web :5173 / console :5174 / storybook :3000
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+pnpm check:architecture
+pnpm check:docs
+pnpm check:no-inner-deps
+pnpm gen:openapi
+pnpm gen:skills
+pnpm gate               # 完整本地门禁
+pnpm verify:push        # 推送验证子集
 ```
 
-`.githooks/`（`core.hooksPath`）提供 `commit-msg`（中文 Conventional Commits）、
-`pre-commit`（暂存区 lint）、`pre-push`（`verify:push`）。**hook 可被 `--no-verify`
-绕过，是便利不是强制。** 仓库不再提供 CI 流水线配置；完整验收使用 `pnpm gate`。
+命令的精确定义以根 `package.json` 为准。`check:docs` 检查命令、包级入口、接口路径和
+Skill 漂移，不能代替规范语义审查。仅文档调整的验证选择见验收文档。
 
-提交信息用简体中文，遵循 Conventional Commits：`<type>(scope): <description>`，每行不超过
-100 字符；scope 用包名短称（`sdk`、`chat-ui`、`eval`、`server`、`web`、`console`、
-`storybook`、`docs`、`skills`、`repo`）。
+仓库 `.githooks/` 提供暂存区 lint、提交格式和推送验证；只有 `core.hooksPath` 指向它时才生效，
+不要假定个人全局 hook 已执行仓库门禁。Hook 可被 `--no-verify` 绕过，是便利而非强制。
+仓库不提供 CI 流水线配置；需要完整验收时运行 `pnpm gate`。
+
+提交信息使用简体中文 Conventional Commits：`<type>(scope): <description>`，每行不超过
+100 字符。scope 使用 `sdk`、`chat-ui`、`eval`、`server`、`web`、`console`、
+`storybook`、`docs`、`skills` 或 `repo`。
 
 <!-- BEGIN:turborepo-agent-rules -->
 

@@ -7,7 +7,7 @@
 | `apps/server` | Node ESM | Node ≥ 24 | Hono 应用工厂 `createKitServer()`，数据面 + 控制面 |
 | `apps/web` | 纯静态 CSR | 浏览器 | 体验页，支持 Web / H5 |
 | `apps/console` | 纯静态 CSR | 浏览器 | 管理端 |
-| `apps/storybook` | Next.js（Fumadocs） | Node | 文档站 |
+| `apps/storybook` | Next.js 静态导出（`out/`） | 构建使用 Node ≥24；部署为静态托管 | Fumadocs 文档站与组件预览 |
 
 体验页采用 CSR，构建产物可独立静态部署。
 
@@ -119,7 +119,8 @@ apps/web / apps/console / packages/chat-ui
   的暖灰视觉基础；亮暗色板、语义字号、实色表面、选中／焦点、状态色和圆角／阴影统一定义
   在 `chat-ui/theme.css`。管理端与默认组件预览不启用该属性，保留原有色板；Portal 与
   移动抽屉继承页面根节点主题。
-- `server`：只依赖 `protocol`（共享 DTO），运行时依赖 `@openagentpack/sdk`。
+- `server`：使用 Kit SDK 的共享协议与允许的数据能力；上游 `@openagentpack/sdk` 的
+  Provider 运行时访问集中在 gateway，不反向依赖 React 或应用 UI。
 - UI 组件栈边界：antd 仅限 `apps/console`（ADR-0015），其余 app 与全部 packages 禁止；
   对话链路组件（消费 SessionEvent/消息分片/会话状态）在所有端一律 `kit-chat-ui`。
 - 由 `.dependency-cruiser.cjs` 强制，规则名与包级 `AGENTS.md` 一一对应。
@@ -172,6 +173,37 @@ Web 的 `lib/chat-backend.ts` 是实际运行的示例配置，明确填写 Kit 
 Provider 不能经功能聚合入口间接载入高层流程，Chat 核心不能反向引用 Composer。
 功能入口隔离规则禁止通用功能引入原始百炼转换器；只有显式使用
 `kit-sdk/providers/bailian` 时才加载 SDK 的浏览器转换依赖。默认消息转换同样受此隔离约束。
+
+## UI 主题与确认交互
+
+组件准入及已有例外以 ADR-0015 的现行约定为准。主题和样式各有明确的应用或包级所有者：
+
+| 范围 | 主题与样式归属 | 边界 |
+| --- | --- | --- |
+| chat-ui / Web | `packages/chat-ui/src/theme.css`；应用入口声明扫描源 | 冻结组件视觉与动效 token，业务布局用 Tailwind，不在组件新增设计常量 |
+| Console 管理控件 | `apps/console/src/lib/antd-theme.ts` | 经 ConfigProvider 使用当前集中定制，页面不散落 antd token 或内部样式覆盖 |
+| Console 全局适配 | `apps/console/src/styles.css` | 维护全局浮层修正、antd 变量镜像及应用内 kit token 适配；不让组件库反向依赖 antd |
+| 文档站 | `apps/storybook/app/globals.css` 的 `--kd-*` | 站点视觉独立，不重定义组件库 `--kit-*` token |
+
+Console 新页面布局沿用 Tailwind，已有 `*.module.less` 随页面渐进维护；共享皮肤修正不散落到页面。
+SDK、组件库和其他应用不引用 Console 主题或样式，组件库主题与 antd 配置保持包级独立。
+
+服务端的计划与一次性令牌合同不因 UI 组件选型改变。某项更新是否需要服务端 Plan，
+以接口 op 为准；UI 确认本身不创造新的后端操作：
+
+| 操作 | 确认界面 | 展示与执行要求 |
+| --- | --- | --- |
+| Web 会话归档/删除 | kit-chat-ui AlertDialog | 展示计划影响，用户显式确认后提交有效令牌 |
+| Console 资源发布 | antd Modal 或既有 AlertDialog | 展示 SDK 差异后确认，携带有效计划与令牌 |
+| Console 模版编辑/历史应用 | 既有模态确认 | 确认立即生效的影响，通过 `base_version` 更新并追加版本，不执行 SDK apply |
+| Console 限额调整 | antd Modal | 展示本地配置差异并确认，按既有限额更新接口提交，不新增 Plan/令牌字段 |
+| Console 模版上/下架 | 单次模态确认 | 说明目标与影响，后台准备只读计划；计划有效且用户点击确认后执行 |
+| Console 模版删除 | 单次模态确认 | 正文按接口合同固定为确认提示；不展示 diff，但计划、主体/目标绑定及令牌检查不豁免 |
+
+Console 模态确认保留焦点约束、显式动作与关闭后的焦点恢复。重新准备计划后不能自动提交；
+上述展示例外不授权绕过服务端闸门，也不适用于其他资源删除或远端写入。
+本页拥有的临时调试 Session 清理沿用已授权的生命周期与删除计划，不扩大为通用自动确认。
+精确接口和恢复语义分别见 `interfaces.md` 与 `protocol.md`。
 
 ## 管理端页面路由与静态部署
 

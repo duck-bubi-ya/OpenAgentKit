@@ -1,100 +1,63 @@
-# apps/storybook — Fumadocs 文档站（静态导出部署）
+# apps/storybook — 文档站与组件预览
+
+适用于本目录。先读[根规则](../../AGENTS.md)、[架构](../../docs/architecture.md)、
+[目录规则](../../docs/repository-layout.md)及[开发 Skill 规则](../../scripts/skills/AGENTS.md)。
+框架和依赖版本以本包 package.json、lockfile 与已安装文档为准。
+
+## 职责与入口
+
+- `content/docs/`：中文使用文档与 MDX；`meta.json` 管导航。
+- `source.config.ts`、`lib/source.ts`、`lib/mdx-components.tsx`：MDX 加载、目录及组件映射。
+- `lib/openapi.ts`、`scripts/sync-openapi.mjs`：从服务端 spec 生成接口文档输入。
+- `components/`、`app/previews/`：真实组件预览、设备视口及站点交互。
+- `app/globals.css`：站点视觉与 `--kd-*` token。
+- `.source/`、`.next/`、`out/`、本包 `openapi.json` 与 `public/skills/`：生成物，不手改。
 
 ## 不变量
 
-1. **内容与仓库事实一致**：命令、op、包名改动时同步本页；`pnpm check:docs` 会校验 `.md` / `.mdx` 中
-   `pnpm <script>` 真实存在，活跃文档不引用已移除的独立 CLI。
-2. **中文为主**（开源前），英文版在开源迁移时补；代码标识符保留原文。
-   Skill 是例外：`scripts/skills/src/` 的入口、参考、元数据与示例全部使用英文，
-   站内 Skill 介绍、安装说明与导航仍为中文，嵌入示例保持英文原文。
-3. **不引入内网域名/包**（零内网依赖约束同样适用）；也不引外部字体/CDN——静态产物必须离线可开。
-4. fumadocs-mdx 16 的加载链路：`source.config.ts` → `.source/server.ts`（生成物，不手改）→
-   `lib/source.ts` 的 `loader()` → 页面用 `source.getPage/pageTree/generateParams`。
-5. **MDX 自定义组件走 `lib/mdx-components.tsx`**：fumadocs-mdx 15 不读 Next 的
-   `mdx-components.tsx` 约定文件，必须在渲染处显式传 `<MDX components={mdxComponents} />`
-   （`app/docs/[[...slug]]/page.tsx`）。新增可在 MDX 里用的组件时改这一处。
-6. **组件预览渲染的是真实 `@openagentpack/kit-chat-ui`**（storybook 直接依赖 workspace 包），
-   不是截图或复刻。因此 `app/globals.css` 必须保留两条东西：
-   `@import "@openagentpack/kit-chat-ui/theme.css"`（token）与
-   `@source "../../../packages/chat-ui/src/**/*.{ts,tsx}"`（Tailwind 扫描，缺了会静默无样式）。
-   手机设备预览走 `components/phone-frame.tsx` 的仿真壳（中框/侧键/灵动岛/状态栏/Home 条/眩光），
-   装饰层一律 `aria-hidden` + `pointer-events: none`；状态栏颜色吃 chat-ui 的 `--kit-fg`，
-   随 `data-kit-theme` 自适应。内容通过 `/previews/[name]/` 静态 iframe 路由运行，
-   media query 与 `useIsMobile` 使用预览自己的视口；手机使用真实窄屏宽度，切换设备不重挂 iframe。
-   `lib/showcase-names.ts` 同时约束静态路由与注册表。主题由父页面同步，预览不得改写父页面的主题存储。
-   桌面预览使用 `--kd-preview-desktop-width` 定义的独立视口并按可用空间缩放，不能因文档栏变窄切到移动布局。
-   依赖浏览器宽度决定首屏结构的 Layout 演示通过客户端 `next/dynamic` 关闭 SSR，避免窄屏 hydration 不一致。
-   改壳不要动预览交互层。
-7. **接口声明页是生成物**：`scripts/sync-openapi.mjs`（predev 与 prebuild 的第一步）把
-   `apps/server/openapi.json` 复制到本包根目录（gitignore），`lib/openapi.ts` 用
-   fumadocs-openapi 按 tag 生成虚拟页面（`/docs/api/**`）。改路由后先 `pnpm gen:openapi`
-   再构建文档站；不要手改 `openapi.json` 或虚拟页面。
-8. **import 一律相对路径 + 显式扩展名**（`../../lib/source.ts`），不用 Next 的 `@/` 别名：
-   dependency-cruiser 不解析该别名，用了会把文件判成 orphan（门禁报 warning）。
-9. **静态导出约束**：`output: "export"` + `trailingSlash`；不用 server actions、不用
-   `redirect()`（首页与落地页都是纯静态）；交互一律放 `"use client"` 组件。
-   `public/skills/` 是构建复制的下载资产，不进入 storybook 的 TypeScript 和架构扫描；
-   其中示例的唯一检查源在 `scripts/skills/src/*/examples/`。
-10. **Skill API 与示例只有一份源文件**：`pnpm gen:skills` 从公开 TypeScript API 更新英文参考，
-    并同步组件、SDK 与 Skill 栏目 MDX 中 `{/* skill-example: <skill>/examples/<file> */}` 标记之间的代码。
-    不手改生成区；先改 Skill 的 TS/TSX 示例，再生成。`pnpm check:skills` 只检查漂移，
-    文档构建不能自动修正已跟踪文件。静态下载由构建准备到 `public/skills/`，不入库。
-11. **SDK 栏目按四层说明接入**：Stream、Request、Provider、Chat 分别说明读取、HTTP、
-    后端映射与会话编排。Controller 从 `kit-sdk/chat` 导入，hooks 从对应功能的 `/hooks` 导入；
-    KitClient 来自 `kit-sdk/providers/kit`；KitProvider 与 Context 来自 `kit-sdk/providers/kit/react`，
-    `useIsMobile` 来自 `kit-sdk/hooks`。源码与公开入口按 ADR-0026 的功能模块对应，
-    不使用旧根入口或 `/react`，内部生命周期与 Client 解析工具不列入公开 API。
-    不把通用 SSE EOF、HTTP 成功或单条消息完成描述为 Agent 执行完成。
-12. **站点视觉层只在 `app/globals.css`**：自有 token 一律 `--kd-*`（圆角/阴影/动效/表面/强调色），
-    亮暗两套各自校对比度；`--kit-*` 是 kit-chat-ui 的冻结 token，站点**不得重名定义**
-    （预览外框只读 `var(--kit-bg)` 等做兜底，暗色跟随靠给外框加 `data-kit-theme="dark"`）。
-    站点组件里禁止写裸颜色/圆角/阴影常量。
-13. **图标一律 `components/icons.tsx` 的内联 SVG**（同族：24 viewBox、1.75 描边、圆头、currentColor）；
-    禁止 emoji 与 ☀/☾ 之类字符图标；装饰性图标 `aria-hidden`，图标按钮必须有 `aria-label`。
-14. **壳文案中文化集中在 `lib/i18n.ts`**（fumadocs 的翻译键即英文原文），经 RootProvider
-    `i18n.translations` 注入；新增壳文案先查 `node_modules/fumadocs-ui/dist/.translations/keys.js`。
-15. **搜索是静态索引**：`app/api/search/route.ts` 的 `staticGET`（`output: export` 下预渲染成
-    `out/api/search`）+ RootProvider `search.options.type = "static"`。删掉任一处，搜索框就永远是
-    空结果（部署站实测过 `data-empty=true`）。
-    `components/site-provider.tsx` 仅在 `/previews/**` 禁用搜索，防止 iframe 内的搜索快捷键触发站点导航；
-    站点的按钮和快捷键搜索仍须可用。
-16. **落地页结构组件**在 `components/{site-header,terminal-card,reveal}.tsx`；进场动效（`.kit-reveal`）
-    只动 opacity/transform，`prefers-reduced-motion` 下直达终态；侧栏目录名中文化在 `lib/source.ts`
-    的 `FOLDER_TITLES`（只改展示名，不改 URL）。
-17. **reactbits 式展示层**：签名动效 =
-    极光光带 / 点阵底 / 跑马灯 / spotlight 卡 / scramble-decode 标题 / 数字滚动，实现集中在
-    `components/{marquee,glow-card,scramble-text,count-up,hero-showcase}.tsx` 与 `globals.css` 的
-    keyframes；**全部手写 CSS/原生 JS，不引动效依赖**。每条动效必须回答「reduced-motion 下是什么」：
-    一律静止/终态；scramble 与 count-up 的 SSG 首屏直接输出最终文本（无 JS 也可读）。
-    hero 背景是 **ColorBends 同概念自研 shader**（`components/backgrounds/color-bends.tsx`，
-    vanilla WebGL、零依赖、变体 nebula/aurora/ember/ice 只换颜色 uniform）；WebGL 不可用时
-    渲染 null 回落 CSS 极光（hero 无 `data-webgl` 属性时 `::after` 仍在）；离屏/hidden 暂停 rAF，
-    reduced-motion 只画一帧。光带必须压在下半屏（frag 里 ribbon base ≤ 0.40），文案区对比度优先。
-18. **主题按路由固定**：首页暗、`/docs/**` 亮。`app/layout.tsx` 的内联脚本在绘制前按 pathname
-    写 class 与 next-themes 的 storageKey（防闪白/闪黑）；`components/route-theme.tsx` 负责 SPA
-    跳转时同步。**不要再加手动主题开关**（落地页 ThemeToggle 已删、docs 侧
-    `themeSwitch={{ enabled: false }}`）——手动切换会与路由语义打架。预览的 `data-kit-theme`
-    跟随 resolvedTheme，两套主题下都验过。
+1. 命令、包名、导入入口与页面说明必须对应当前实现。页数、依赖版本和 CI 拓扑
+   不作为冻结规范；仓库当前不提供 CI 配置。
+2. 站内说明使用中文；Skill 源、API 参考及嵌入示例遵循 ADR-0027 的英文约定。
+   用户文档不得把私有 workspace 包描述为已经发布到 npm。
+3. 使用本地资源，不引外部字体/CDN、内网包或内网地址，静态下载保持离线可用。
+4. MDX 通过 `source.config.ts → .source/server.ts → lib/source.ts` 装配；
+   自定义 MDX 组件在 `lib/mdx-components.tsx` 注册并显式传给渲染器。
+   import 保持相对路径和显式扩展名，不引入未经依赖检查支持的别名。
+5. 保持 `output: "export"` 和 `trailingSlash`；页面及预览路径必须可静态生成。
+   交互放客户端组件，不依赖运行时服务端动作。框架配置修改先查已安装版本文档。
+6. 预览使用真实 kit-chat-ui。保留 theme 导入及 chat-ui 源码 `@source`；
+   iframe 自己的视口决定断点，设备切换不替换业务实现或无故重挂载。
+   涉及浏览器视口的演示在适用时禁用 SSR，保留根主题、Portal 与焦点作用域。
+7. 站点样式归 `globals.css` 的 `--kd-*` token，不能覆盖组件库的 `--kit-*` 定义。
+   新图标复用 `components/icons.tsx` 的 SVG 族；动效遵循 reduced-motion、离屏和隐藏暂停。
+8. 首页暗色、文档页亮色的路由主题由既有初始化脚本与 `route-theme.tsx` 维护；
+   不另加相互冲突的主题状态。搜索使用静态索引，预览禁用父站搜索，不能删除索引生成/复制步骤。
+9. OpenAPI 来自服务端 spec；下载 Skill 来自根 `assets/skills/` 及离线包。
+   构建先检查漂移，不在构建时修补被跟踪的源文件。
+10. `skill-example` 标记区与英文参考从 Skill 唯一源生成。示例只使用公开 API，
+    不复制协议映射、会话状态机或私有生命周期实现。
 
-## 加一篇文档时
+## 修改步骤
 
-1. `content/docs/<slug>.mdx` + frontmatter（title/description）；
-2. `content/docs/meta.json` 的 pages 登记顺序（文件夹用目录 + 自己的 meta.json）；
-3. 需要组件预览时用 `<Showcase name="…" />`（注册表在 `components/showcase.tsx`，
-   demo 在 `components/demos/`，纯客户端、无 server 依赖）。
+1. 先修改内容所属的权威文档、公开 API 或 Skill 源，再更新 MDX 与导航。
+2. 新页面登记 `meta.json`；新预览复用 Showcase、真实组件与设备壳。
+3. 接口变化先运行根 `pnpm gen:openapi`；Skill 变化运行 `pnpm gen:skills`，
+   不直接编辑生成输入或标记区。
+4. 检查链接、搜索、主题、键盘操作与窄屏效果；只对改变的交互选择浏览器回归。
 
-## 强制它的闸门
+## 验收
 
-- `pnpm --filter storybook build`（SSG 全页预渲染，编译即校验；60 页含 45 个接口页）。
-  注意 `prebuild` 会先构建 kit-chat-ui/core/protocol：CI 只装并构建 storybook
-  子树，不跑 turbo 全量 build，缺了这步 CI 会 `Module not found: @openagentpack/kit-chat-ui`；
-- `pnpm check:docs`；
-- `pnpm check:skills`（覆盖公开组件、API 漂移、独立目录链接与共享示例；已并入文档检查）；
-- 浏览器回归：构建后用 `python3 -m http.server 3010 --bind 127.0.0.1 --directory apps/storybook/out`
-  托管静态目录，再运行 `pnpm --filter storybook e2e`；可通过 `DOCS_PREVIEW_URL` 指定已有静态站点。
-  用例放 `e2e/`，只验证组件本地交互，不连接 Kit server 或 Cloud。
-- 视觉验收：静态托管后逐页看（亮/暗两套主题、预览的设备切换、
-  390px 视口无横向溢出、搜索框有真实结果）。
+```bash
+pnpm --filter storybook typecheck
+pnpm --filter storybook test
+pnpm check:docs
+pnpm --filter storybook build
+```
+
+首次安装缺少生成输入时，按验收文档的文档站准备步骤生成，不手写占位文件。
+内容/交互变更构建后静态托管 `out/` 并运行相关 `pnpm --filter storybook e2e` 用例；
+`DOCS_PREVIEW_URL` 可指定静态站点。只改 AGENTS.md 的文字按根规则验证，
+无需重跑所有页面的视觉验收。
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -20,6 +20,24 @@ scripts/         仓库级脚本（dev、kit、skills、check-docs、check-no-in
   决策见 ADR-0022。在仓库根目录运行 `pnpm kit:add <component> --dir <project>`，
   将组件源码复制到已有项目。
 
+## AGENTS.md 的组织与维护
+
+| 位置 | 范围与责任 |
+| --- | --- |
+| 根 `AGENTS.md` | 全仓入口、权威顺序、目录导航、执行红线及共同工作规则 |
+| `apps/*/AGENTS.md` | 应用职责、局部边界、修改步骤与验收入口 |
+| `packages/*/AGENTS.md` | 包的状态/数据所有权、公开面、依赖方向与合同验证 |
+| `scripts/skills/AGENTS.md` | 开发 Skill 人工源、生成、校验与分发链路，包含对生成物的维护约束 |
+
+局部文件统一按「职责与入口 → 不变量 → 修改步骤 → 验收」组织，引用根规则和有关权威文档。
+不复制完整页面规格、版本/页数快照或逐次迁移记录；产品合同进入接口/协议/架构，源码放置进入本文，
+长期上游证据进入 research，难以撤销的决定进入 ADR。既有保护用户流程的规则不能只因缩短篇幅删除，
+应保留不变量或指向实际拥有该合同的文档及测试。
+
+修改目录、公开入口、命令、组件栈或确认例外时，同时核对根文件、局部文件和拥有规则的权威文档。
+已标记替代的 ADR 正文仅作背景，不据此恢复旧入口；Turborepo/Next 自动维护块保留原文，
+不能因整理而删去版本文档读取要求。生成资产不新增平行人工规则源。
+
 ## 包内
 
 ```
@@ -27,7 +45,7 @@ packages/<name>/
   src/            源码；公开入口见 package exports（SDK 按功能设置）
   src/protocol/generated/  自动生成的 OpenAPI 类型，不手改、不写测试
   tests/          跨模块测试与 fixture；单文件单测与源码同目录 <name>.test.ts
-  AGENTS.md       该包不变量 + 「加一个新 X 时」步骤 + 强制它的闸门
+  AGENTS.md       职责与入口 + 不变量 + 修改步骤 + 验收
   package.json    private: true（开源前）+ publishConfig（开源后直接发）
   tsconfig.json   extends ../../tsconfig.base.json
   tsup.config.ts  需要产 dist 的包（sdk/chat-ui/eval）
@@ -270,7 +288,7 @@ console `src/lib/admin/use-member-usage.ts` 只订阅 Controller 并管理生命
 `services/auth-stream.ts` 负责已建立 SSE 的撤销 / 到期。文件归属在
 `services/files.ts`、`store/files.ts`，不保存文件字节或事件正文。
 SDK 的 `auth/member-auth.ts` 管理固定身份 Client 与认证状态；`auth/hooks/` 的
-`useMemberAuth` 绑定生命周期。体验页与生成模板的 `features/auth/` 只负责表单、浏览器
+`useMemberAuth` 绑定生命周期。体验页的 `features/auth/` 只负责表单、浏览器
 sessionStorage 和页面闸门，不复制 HTTP / SSE 认证逻辑。
 
 体验页两级会话目录合同在 `packages/sdk/src/protocol/session-directory.ts`；server 的
