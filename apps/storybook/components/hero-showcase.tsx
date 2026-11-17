@@ -9,8 +9,8 @@ import { TerminalCard, type TerminalLine } from "./terminal-card.tsx";
 const QUICKSTART: TerminalLine[] = [
 	{ cmd: "pnpm install", comment: "monorepo：pnpm 10 + Turborepo" },
 	{ cmd: "pnpm dev", comment: "server :8787 + web :5173 + console :5174" },
-	{ cmd: "pnpm kit:create my-experience", comment: "从模板生成可跑仓库" },
-	{ cmd: "pnpm kit:add chat", comment: "copy-in：组件源码进你的项目" },
+	{ cmd: "pnpm catalog:list", comment: "查看可复制的组件目录" },
+	{ cmd: "pnpm kit:add chat --dir ../my-app", comment: "copy-in：组件源码进你的项目" },
 ];
 
 /**

@@ -1,20 +1,20 @@
 ---
 title: 指南
-description: 独立项目生成、鉴权、流式与重连、artifact 与部署
+description: 页面定制、鉴权、流式与重连、artifact 与部署
 ---
 
-## 生成独立项目
+## 定制自己的页面
 
-需要独立应用时，可以用脚手架创建自己的项目：
+需要定制应用时，可参考仓库内的 `apps/web`，按需复用 SDK 功能入口、React hooks 和 chat-ui 组件。
+数据接入见 [SDK 与 Kit 数据接入](/docs/sdk)，组件用法见[组件总览](/docs/components)。
+
+在 Kit 仓库根目录执行以下命令，可将组件及其声明依赖复制到已有项目：
 
 ```bash
-pnpm kit:create my-agent-app --kit /path/to/OpenAgentPack-Kit
-cd my-agent-app
-pnpm install
-pnpm dev
+pnpm kit:add chat --dir /path/to/my-agent-app
 ```
 
-生成的项目依赖以 `file:` 指向 kit 仓库（kit 包未发布期间）；开源迁移后改为 npm 版本。
+目标项目需要自行配置 React、Tailwind 与 Kit 依赖；组件复制命令不安装 npm 依赖。
 
 ## 鉴权与 Identity
 

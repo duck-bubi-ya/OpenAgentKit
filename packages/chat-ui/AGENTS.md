@@ -1,52 +1,53 @@
-# packages/chat-ui — copy-in Chat 产品组件
+# packages/chat-ui — Chat 产品组件
+
+适用于本目录。先读[根规则](../../AGENTS.md)、[架构](../../docs/architecture.md)及
+[目录规则](../../docs/repository-layout.md)。本包负责可 copy-in 的视觉与本地交互。
+
+## 职责与入口
+
+- `src/components/<component>/`：独立组件、中文说明与同目录测试；
+  执行过程组件位于 `components/process/`。
+- `src/index.ts`：公开导出；`registry.json`：复制入口、文件及依赖闭包。
+- `src/theme.css`：冻结视觉 token、外观、动效与 reduced-motion。
+- `tests/`：需要跨组件协作的回归；公开 API 与示例同步到开发 Skill。
 
 ## 不变量
 
-1. **组件不 fetch、不依赖 server**：数据一律来自 SDK 各功能 `/hooks` hooks 的 props 注入。
-2. **样式只用 Tailwind 工具类或 `theme.css` 冻结 token**（CSS 变量）；禁止新增颜色/间距/
-   圆角/阴影常量，禁止手写 `.css`（`theme.css` 是唯一例外，放冻结 token 与动效基类）。
-3. **可 copy-in**：每个组件文件自包含（仅依赖 registry.json 里声明的 deps），复制进用户
-   项目后不依赖 monorepo 内部路径。
-4. **破坏性操作 UI 必须 AlertDialog 语义**（见 `apps/console` 的确认弹窗）。
-5. **新组件门槛**：至少一个真实调用方（apps/web、apps/console、templates）。
-6. **不得嵌套交互元素**（`<button>` 内不能再有 `<button>`/`<a>`）：Chrome 对**真实点击**会把
-   激活行为交给最外层的可激活元素，内层按钮的 `onClick` 永远不触发；而合成 `el.click()`
-   却能触发——所以这类 bug 只有真实点击的 E2E（或真机）能抓到。行内多操作用
-   「`div` 容器 + 并列 `button`」，不要用一个外层 button 包整行。
-7. **消费方必须能扫到本包的工具类**：Tailwind v4 的自动源探测不扫 `node_modules`（workspace
-   软链也算）与仓库外目录，因此每个消费方的 `styles.css` 必须显式
-   `@source ".../packages/chat-ui/src/**/*.{ts,tsx}"`。缺失的表现是**静默无样式**
-   （class 在 DOM 上、CSS 里查不到），验证方式：`grep -c 'max-md' apps/web/dist/assets/*.css`。
-   只在 chat-ui 内部使用的断点类（如侧栏 `max-md:hidden`）尤其容易踩。
-8. **图标字段既可能是图片地址也可能是 emoji**：`isIconImageSource()`（`agent-header/index.tsx`）是
-   唯一判定入口——只有 `http(s):` / `data:` / `/` / `./` 开头才渲染 `<img>`，其余按文本
-   渲染。把 emoji 塞进 `<img src>` 会得到一张裂图，且不会报错。
-9. **`AgentHeader` 的标题可以是切换器**：传入 `agents` + `onPickAgent` 时标题渲染为
-    `<select aria-label="切换 Agent">`，桌面壳与 H5 共用；不传时仍是纯文本标题。
-    体验页当前不接切换器（切 Agent 走广场入口与 `?agent=` 深链）；切换器内部不得再嵌按钮
-    （不变量 6）。
-10. **自动滚底只滚列表容器，禁止 `scrollIntoView`**：`scrollIntoView` 会连带滚动所有可滚动
-   祖先——落地页/文档页内嵌的 Chat 预览曾因此把**整个页面**拖到预览位置（用户看到「打开首页
-   自动滚动」）。正确写法是对 `overflow-y-auto` 的列表容器设 `scrollTop = scrollHeight`
-   （`components/message-list/index.tsx` 的 `MessageList`）。任何新组件需要「滚到某处」时同理：只操作自己的滚动容器。
-   空列表的开场内容从顶部阅读，用户滚动后保留位置；出现首条消息时再恢复自动滚底。
-11. **组件必须有过渡动效**：弹层、展开/收起、入场、悬停等状态变化不得生硬切换。动效 token
-    （`--kit-duration-*`、`--kit-ease-out`、`--kit-animate-*`）与 details 高度过渡基类
-    `.kit-collapse` 冻结在 `theme.css`；新动效先补 token 再消费，不就地写死时长/缓动，
-    且必须随 `prefers-reduced-motion` 降级。
+1. 组件不 fetch 业务接口、不依赖 server，不持有 Provider 凭据、路由或会话生命周期。
+   数据与动作由 SDK 公开能力、hooks 或应用回调注入。
+2. 新组件至少有 Web、Console 或 Storybook 的真实调用方；缺 Primitive 按根 UI 规则补齐，
+   不为设想中的需求预建组件库。
+3. 主题与动效只消费冻结 token，不在组件新增颜色、尺寸、阴影或 keyframes 常量。
+   折叠复用 `.kit-collapse`，所有状态过渡支持 reduced-motion。
+4. 动态消息、分片和折叠状态使用 SDK 稳定身份，累计快照替换/删除时不按数组下标复用状态。
+5. 组件复制保留目录层级与正确相对导入；依赖在 registry 闭包中声明，
+   聚合入口只重导出。复制后的项目不依赖 monorepo 私有路径。
+6. 高风险确认组件使用 AlertDialog 语义；Console 的 antd Modal 例外属于应用适配，
+   不改为本包的普通 Dialog。禁止嵌套交互元素，并保持键盘、焦点及移动入口可用。
+7. 图标图片/文本判定复用 `isIconImageSource`，不把 emoji 当图片地址；
+   组件 Props 和用法以当前公开类型、同目录说明与编译示例为准。
+8. 自动跟随只滚自己的列表容器，不使用会带动祖先的 `scrollIntoView`。
+   空态保持顶部阅读、用户滚动保留位置，消息/子线程变化不能跳走整个文档页。
+9. 消费方必须导入主题并显式配置 Tailwind `@source`；仅看到 DOM class
+   不能证明 CSS 已生成。断点或主题修改要验证消费方的实际产物。
 
-## 加一个新组件时
+## 修改步骤
 
-1. 在 `src/components/<component>/` 写 `index.tsx`、中文 `README.md` 与同目录测试；
-   `process/` 下的组件同样各自建目录。复合组件的静态子组件与私有辅助逻辑留在所属目录，
-   可独立使用的组件各自建目录；跨组件测试放 `tests/`；
-2. 在 `registry.json` 登记 file/deps，保留组件目录层级；聚合入口只重导出，不承载组件实现；
-3. 在 `apps/web` 或 `apps/console` 接入真实调用方；
-4. 需要新 token 时先改 `theme.css` 并说明理由（不要就地写死）。
+1. 核对现有组件、API 和真实调用方；在所属组件目录修改，跨组件测试按目录规则归属。
+2. 公开导出、registry 及 copy-in 相对依赖同步；移动文件保留必要兼容聚合入口。
+3. 改公开 API 同步 `scripts/skills/src/` 的 catalog / 示例，运行 `pnpm gen:skills`；
+   不手改派生的 API 参考或 MDX 标记区。
+4. 用可观察交互验证发生变化的行为，检查调用方与移动端；不为静态样式或框架默认行为堆测试。
 
-## 强制它的闸门
+## 验收
 
-- dependency-cruiser `chat-ui-must-not-depend-on-server`；
-- `pnpm --filter @openagentpack/kit-chat-ui typecheck`；
-- `apps/web/e2e/fixtures.ts`：把 React 的「非法 HTML 嵌套」开发期警告升级成 E2E 失败（不变量 6）；
-- `apps/web/e2e/experience.spec.ts` 的 H5 用例：断点类真的生成了（不变量 7）。
+```bash
+pnpm typecheck
+pnpm lint
+pnpm --filter @openagentpack/kit-chat-ui test
+pnpm check:architecture
+pnpm check:docs
+```
+
+运行时代码或样式变化另验相关 app 测试、构建和浏览器用例；
+仅修改规范文字按根文档验证规则执行。

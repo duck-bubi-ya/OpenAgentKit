@@ -14,7 +14,7 @@ if (!name || (dirFlag >= 0 && !args[dirFlag + 1])) {
 	process.exit(1);
 }
 if (dirFlag < 0 && resolve(projectDir) === REPO_ROOT) {
-	console.error("请在生成项目目录执行 pnpm kit:add，或传入 --dir <project>。");
+	console.error("请传入 --dir <project> 指定组件复制到的项目目录。");
 	process.exit(1);
 }
 if (!existsSync(join(projectDir, "package.json"))) {

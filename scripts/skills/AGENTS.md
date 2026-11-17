@@ -1,40 +1,48 @@
-# scripts/skills — 英文 Coding Agent Skills 源与生成器
+# scripts/skills — 中文开发 Skill 源与生成器
 
-这里交付 `kit-components`、`use-kit-chat`、`kit-chat-provider`，不参与产品运行时。
-按用户明确要求，Skill 内的入口、引用、元数据与示例全部使用英文；维护文档与文档站介绍仍用中文。
+适用于本目录及其生成链路。先读[根规则](../../AGENTS.md)、
+[目录规则](../../docs/repository-layout.md)与 [ADR-0027](../../docs/adr/0027-skills-source-and-generated-output.md)。
+这里维护开发期内容，不是 workspace 包，不参与产品运行时。
 
-## 源与产物
+## 职责与入口
 
-- `src/<name>/` 是唯一人工编辑入口：
-  - `metadata.json`：name、description、displayName、shortDescription、defaultPrompt；
-  - `skill.md`：`SKILL.md` 正文；
-  - `catalog.json`：公开 API 到英文用途、中文权威文档与示例的映射；
-  - `references/`：人工维护的行为说明；
-  - `examples/`：可编译的 TS/TSX 示例。
-- `assets/skills/<name>/` 由 `pnpm gen:skills` 生成，禁止手改。每个最终目录必须能独立复制，
-  内部相对链接不得越出当前 Skill；生成链接与文件键统一使用 `/`，不依赖宿主路径分隔符。
-- `assets/skills/dist/` 是 `pnpm pack:skills` 生成的离线包，不提交。
+- `src/<name>/metadata.json`、`skill.md`、`catalog.json`、
+  `references/`、`examples/`：唯一人工编辑源。
+- `generate.mjs`、`api-model.mjs`、`validate.mjs`：抽取公开 API、生成与漂移/内容校验。
+- `pack.mjs`、`archive.mjs`：离线包与文档站下载准备；`tests/`：生成链路合同。
+- `assets/skills/<name>/`：被跟踪的最终生成目录；`assets/skills/dist/` 为忽略的离线包。
+  `apps/storybook/public/skills/` 是构建下载资产，不是第二份人工源。
 
-## 生成规则
+## 不变量
 
-- `SKILL.md` 的 frontmatter 由 metadata 生成，正文来自 `skill.md`。
-- `agents/openai.yaml` 由 metadata 生成。
-- `references/api.md` 来自公开 TypeScript 导出及 catalog 的英文语义说明；
-  `references/examples.md` 与文档站标记块来自同一份 TS/TSX。
-- `kit-components` 必须覆盖 chat-ui barrel 的全部组件、静态子组件与工具函数，不能只看
-  registry 分组。工具函数标记 `kind: "helper"`，示例必须实际调用；组件示例必须通过 JSX 使用。
-- `kit-chat-provider` 覆盖独立 Stream/Request 与后端适配；`use-kit-chat` 覆盖 SDK Controller
-  与各功能 `/hooks` hook。新公开子入口必须登记 API 模块表；同一类型经多入口重导出时按符号去重。
-  Kit Context 使用 `/providers/kit/react`；通用 `/hooks` 只公开 `useIsMobile`，内部订阅与查询工具不进入公开参考。
-- SDK 与 Skill 文档页都从 `src/*/examples/` 同步代码，不能为新入口维护第二份手写示例。
-- SDK 未发布能力必须说明依赖前提；示例不得导入 SDK 主入口或 internal，不复制其转换器。
+1. Skill 的入口、参考、元数据、示例注释与界面文案使用中文，保留 Skill ID、文件名、API 标识符和协议值。
+2. 最终目录由根命令生成，不手改 `SKILL.md`、OpenAI metadata、API/示例参考、
+   示例副本或 MDX 的 `skill-example` 标记区。
+3. 每个 Skill 可独立复制；内部相对链接不能越出目录，文件键使用可移植的 `/`。
+   离线包保持确定性，构建不修补被跟踪的源文件。
+4. `kit-components` 覆盖公开组件、静态子组件和 helper，不以 registry 分组代替 API。
+   示例必须实际调用对应组件或函数，类型和必填项来自公开声明。
+5. `kit-chat-provider` 负责 Stream/Request 与后端接入说明；
+   `use-kit-chat` 负责 Controller 与功能 hooks。模块表、catalog 和实际公开入口同步，
+   同一类型经多入口导出时去重，不暴露私有工具。
+6. 示例遵循 SDK / UI 边界，不导入上游 SDK 主入口运行时或 internal，不复制状态机或转换器；
+   未发布依赖必须明确前提，不能把离线示例描述为真实 Cloud 验证。
 
-## 验收与分发
+## 修改步骤
 
-- `pnpm typecheck:skills` 编译 `src/*/examples/` 与公开 API fixture。
-- `pnpm test:skills` 保护同步漂移、独立离线包、英文内容、链接和浏览器依赖边界，
-  不重复测试 Provider 网络映射。
-- `pnpm gen:skills` 更新最终目录与文档示例块；`pnpm check:skills` 只读比较，发现漂移失败。
-- `pnpm pack:skills` 在检查通过后生成 `assets/skills/dist/*.tgz`；构建产物不入库，不发布 npm。
-- 文档站构建先校验源内容，再复制最终 Skill 目录与离线包。不能在构建时改写被跟踪的文档。
-- 新增复杂流程时用独立 agent 在临时目录前向试用，再按实际结果改进内容。
+1. 先改所属公开 API 或 `src/<name>/` 的内容，新增能力同步 catalog 与编译示例。
+2. 运行 `pnpm gen:skills`，检查最终目录及 MDX 示例变更，禁止直接修补产物。
+3. 新增复杂流程在隔离临时目录前向试用；按适用协作规则使用独立 agent，
+   以试用结果改进说明，不引入产品运行时依赖。
+
+## 验收
+
+```bash
+pnpm check:skills
+pnpm typecheck:skills
+pnpm test:skills
+pnpm check:docs
+```
+
+需要交付离线包时执行 `pnpm pack:skills`。只改本文件且未变更 Skill 源或生成器时，
+按根文档验证规则执行；源码、示例与生成算法变化选择相应漂移、链接、打包和浏览器边界回归。

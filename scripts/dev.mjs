@@ -13,6 +13,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseEnv } from "node:util";
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 if (Number(process.versions.node.split(".")[0]) < 24) {
@@ -22,15 +23,17 @@ if (Number(process.versions.node.split(".")[0]) < 24) {
 
 const envFile = join(root, ".env");
 const env = { ...process.env };
-// 仓库 `.env` 是本项目凭据的权威来源：与 shell 同名变量冲突时以 `.env` 为准（空值不覆盖）。
+// 仓库 `.env` 的非空值覆盖 shell。同一组百炼地址有本地配置时，也应用另一字段的显式空值。
 // 只打印被覆盖的变量名，绝不打印值（AGENTS.md：凭据不进日志）。
 const overridden = [];
 if (existsSync(envFile)) {
-	for (const line of readFileSync(envFile, "utf8").split("\n")) {
-		const m = line.match(/^([A-Z0-9_]+)=(.*)$/);
-		if (!m || m[2] === "") continue;
-		if (m[1] in env && env[m[1]] !== m[2]) overridden.push(m[1]);
-		env[m[1]] = m[2];
+	const localEnv = parseEnv(readFileSync(envFile, "utf8"));
+	const bailianAddressKeys = ["BAILIAN_BASE_URL", "BAILIAN_WORKSPACE_ID"];
+	const hasLocalBailianAddress = bailianAddressKeys.some((key) => localEnv[key]?.trim());
+	for (const [key, value] of Object.entries(localEnv)) {
+		if (!value && !(hasLocalBailianAddress && bailianAddressKeys.includes(key))) continue;
+		if (key in env && env[key] !== value) overridden.push(key);
+		env[key] = value;
 	}
 }
 if (overridden.length) console.log(`[dev] .env 覆盖了 shell 同名变量：${overridden.join(", ")}`);
