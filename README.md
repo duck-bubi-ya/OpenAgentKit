@@ -232,7 +232,8 @@ Workspace ID 或 Base URL。管理员令牌只写入 `.env`，登录管理端时
 默认使用成员登录，Mock 数据位于 `.scratch/local-demo/data`，真实百炼数据位于 `.data`。
 
 已有 `.env` 时直接复用，不重新选择模式、不替换令牌或补写字段；后续仍运行 `pnpm start`。
-根 `.env` 的非空值覆盖 shell 同名变量，启动日志只打印被覆盖的变量名。
+根 `.env` 的非空值覆盖 shell 同名变量。填入 Workspace ID 或 Base URL 后，另一地址字段的显式空值
+也会覆盖 shell 继承值。启动日志只打印被覆盖的变量名。
 
 开发时可用 `pnpm dev` 启动上述三个应用及文档站 `:3000`，或用 `pnpm start server web` /
 `pnpm dev server web` 只启动指定目标。`pnpm setup` 可选，仅用于启用仓库 Git hooks。

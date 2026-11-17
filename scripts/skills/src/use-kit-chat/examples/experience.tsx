@@ -104,8 +104,11 @@ export function Experience({
 		sessionId,
 		files: attachments.files,
 		send: chat.send,
-		// 创建首个会话后继续发送当前草稿。
-		onSessionCreated: (id) => setSelection({ agentSlug, sessionId: id, section: "groups" }),
+		onSessionCreated: (id) => {
+			// 保留当前草稿以发送首条消息，并刷新侧栏目录。
+			setSelection({ agentSlug, sessionId: id, section: "groups" });
+			directory.reload();
+		},
 		onAccepted: attachments.consume,
 	});
 	const artifacts = useArtifactActions({ client, host, sessionId: sessionId ?? undefined, artifacts: chat.artifacts });
@@ -116,8 +119,8 @@ export function Experience({
 	const resources = useAgentResources(agentSlug, { client });
 	const skills = resources?.skills.map(({ name, description }) => ({ name, description }));
 	const limits = useUsageLimits({ client });
-	const canSend =
-		(sessionId ? chat.canSend : client.supports("createSession")) && attachmentsReady && !composer.pending;
+	const canCreateSession = client.supports("createSession");
+	const canSend = (sessionId ? chat.canSend : canCreateSession) && attachmentsReady && !composer.pending;
 	const canReadArtifacts = Boolean(sessionId) && client.supports("downloadFile");
 	const openArtifact = canReadArtifacts
 		? (id: string, type?: string) => void artifacts.open(id, type).catch(() => undefined)
@@ -147,15 +150,17 @@ export function Experience({
 						className="flex min-h-0 w-64 shrink-0 flex-col border-r border-[var(--kit-border-subtle)] bg-[var(--kit-bg-subtle)]"
 					>
 						<div className="flex shrink-0 items-center justify-between gap-2 p-3">
-							<button
-								type="button"
-								onClick={() => {
-									selectConversation({ agentSlug, sessionId: null, section: "groups" });
-									closeSidebar();
-								}}
-							>
-								新建会话
-							</button>
+							{canCreateSession && (
+								<button
+									type="button"
+									onClick={() => {
+										selectConversation({ agentSlug, sessionId: null, section: "groups" });
+										closeSidebar();
+									}}
+								>
+									新建会话
+								</button>
+							)}
 							{closeButton}
 						</div>
 						<SessionSidebar

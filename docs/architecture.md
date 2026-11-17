@@ -17,7 +17,8 @@ API Key 输入隐藏回显，凭据和管理员令牌不写启动日志。已有
 引导取消不创建配置，独占创建防止并发覆盖。默认使用成员登录，Mock 与真实百炼分别使用
 `.scratch/local-demo/data` 与 `.data`。配置完成后接续 `scripts/dev.mjs`，默认启动 server、web、console，
 也可传入指定目标。`pnpm dev` 保留原有默认四个目标；两者都在启动应用前构建其工作区依赖。
-启动器按 Node dotenv 语义解析根 `.env`，非空值覆盖 shell 同名变量，不改写进程全局环境变量。
+启动器按 Node dotenv 语义解析根 `.env`，非空值覆盖 shell 同名变量。`BAILIAN_BASE_URL` 与
+`BAILIAN_WORKSPACE_ID` 中一项已配置地址时，另一项的显式空值也覆盖 shell。合并结果只传给子进程。
 
 ## 分层与依赖方向
 

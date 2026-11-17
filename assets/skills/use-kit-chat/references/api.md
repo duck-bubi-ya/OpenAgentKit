@@ -792,7 +792,7 @@ export function useSessionDirectory(options?: { client?: KitClient; onExecuted?:
 ```
 
 
-<!-- source-sha256: 03cc7fd0c52bf9c430cfc0b68ade42ccba747afe981c790821edbb6e3436fd5d; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 03cc7fd0c52bf9c430cfc0b68ade42ccba747afe981c790821edbb6e3436fd5d; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useSessionSearch
 
@@ -809,7 +809,7 @@ export function useSessionSearch(input: string, options?: { client?: KitClient; 
 ```
 
 
-<!-- source-sha256: 3478174dd20a9b812105107846e9e52813b7dac22677dd0ce2a6a384bfde0276; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 3478174dd20a9b812105107846e9e52813b7dac22677dd0ce2a6a384bfde0276; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useSessionDetails
 
@@ -826,7 +826,7 @@ export function useSessionDetails(options: { client?: KitClient; sessionId: stri
 ```
 
 
-<!-- source-sha256: bbdb5f9fb6937a27196449dfa0e4c05d54c6023d43914fed5ca1e4f2d41c4552; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: bbdb5f9fb6937a27196449dfa0e4c05d54c6023d43914fed5ca1e4f2d41c4552; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useAttachments
 
@@ -843,7 +843,7 @@ export function useAttachments(options?: AttachmentsOptions & { client?: KitClie
 ```
 
 
-<!-- source-sha256: 14205d943f62819650bd25c344f06633ef01a7b01bbf905fd5dabc4e2fdc261b; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 14205d943f62819650bd25c344f06633ef01a7b01bbf905fd5dabc4e2fdc261b; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useComposer
 
@@ -860,7 +860,7 @@ export function useComposer(options: ComposerBinding & { client?: KitClient; }):
 ```
 
 
-<!-- source-sha256: 261b0ff620bac676e528c6a7d16f84fd8fb898e8389398c9530fb469abea4556; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 261b0ff620bac676e528c6a7d16f84fd8fb898e8389398c9530fb469abea4556; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useArtifactActions
 
@@ -877,7 +877,7 @@ export function useArtifactActions(options: { client?: KitClient; host: Artifact
 ```
 
 
-<!-- source-sha256: 78680e18085d7dabdeac32058f6c943ce4dfddf6eb1ee7501f8a1e54a480bf5e; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 78680e18085d7dabdeac32058f6c943ce4dfddf6eb1ee7501f8a1e54a480bf5e; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useQuotaRecovery
 
@@ -894,7 +894,7 @@ export function useQuotaRecovery(options?: { client?: KitClient; }): { recheck: 
 ```
 
 
-<!-- source-sha256: f3ca68dee67de63e0bbae02bc2bb48132beb966b284f03c0c8a0d92921a24378; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: f3ca68dee67de63e0bbae02bc2bb48132beb966b284f03c0c8a0d92921a24378; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## useCreateQuotaRequest
 
@@ -911,7 +911,7 @@ export function useCreateQuotaRequest(options?: { client?: KitClient; }): { subm
 ```
 
 
-<!-- source-sha256: 8293b19ebe9ed26e38da951253746f40ce9332ff269d415227e7ded11b88e031; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 8293b19ebe9ed26e38da951253746f40ce9332ff269d415227e7ded11b88e031; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createSessionDirectory
 
@@ -928,7 +928,7 @@ export function createSessionDirectory(client: KitClient, options?: { onExecuted
 ```
 
 
-<!-- source-sha256: 92d11db0a1709ae57b0df42f48644586cf5617d486c58bd59e235584221ad270; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 92d11db0a1709ae57b0df42f48644586cf5617d486c58bd59e235584221ad270; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createSessionSearch
 
@@ -945,7 +945,7 @@ export function createSessionSearch(client: KitClient, delayMs?: number): { setQ
 ```
 
 
-<!-- source-sha256: 92d11db0a1709ae57b0df42f48644586cf5617d486c58bd59e235584221ad270; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 92d11db0a1709ae57b0df42f48644586cf5617d486c58bd59e235584221ad270; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createSessionDetails
 
@@ -962,7 +962,7 @@ export function createSessionDetails(client: KitClient, sessionId: string | null
 ```
 
 
-<!-- source-sha256: 7db805bed893268f4bd0a645676e294b3ba59416d10f898788d1b86573b5cc7f; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 7db805bed893268f4bd0a645676e294b3ba59416d10f898788d1b86573b5cc7f; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createSessionActions
 
@@ -979,7 +979,7 @@ export function createSessionActions(client: KitClient, onExecuted: (id: string,
 ```
 
 
-<!-- source-sha256: 12c08fb4576d2a8d65033ca39f7cc395c6afa6f39c42a5ead98766c37011979c; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 12c08fb4576d2a8d65033ca39f7cc395c6afa6f39c42a5ead98766c37011979c; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createAttachments
 
@@ -996,7 +996,7 @@ export function createAttachments(client: KitClient, options?: AttachmentsOption
 ```
 
 
-<!-- source-sha256: 8120ea5b889e6c0a2ffd414609ca2bfbb68d2a6eef965c40268523b6a3e33cd2; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 8120ea5b889e6c0a2ffd414609ca2bfbb68d2a6eef965c40268523b6a3e33cd2; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createComposer
 
@@ -1013,7 +1013,7 @@ export function createComposer(client: KitClient, options?: { retryDelayMs?: num
 ```
 
 
-<!-- source-sha256: deab51693858bf119a4c4cdc085d3a3bd33a7a9cd575cf0915e400f65c2eb8e1; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: deab51693858bf119a4c4cdc085d3a3bd33a7a9cd575cf0915e400f65c2eb8e1; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## deriveTitle
 
@@ -1030,7 +1030,7 @@ export function deriveTitle(text: string): string | undefined;
 ```
 
 
-<!-- source-sha256: deab51693858bf119a4c4cdc085d3a3bd33a7a9cd575cf0915e400f65c2eb8e1; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: deab51693858bf119a4c4cdc085d3a3bd33a7a9cd575cf0915e400f65c2eb8e1; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createArtifactActions
 
@@ -1047,7 +1047,7 @@ export function createArtifactActions(client: KitClient, host: ArtifactHost): { 
 ```
 
 
-<!-- source-sha256: 8c7c21b0a44d5b9e4554b113d288b9d08ee746f6511d809a80426ba77b743e21; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 8c7c21b0a44d5b9e4554b113d288b9d08ee746f6511d809a80426ba77b743e21; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## resolveArtifactType
 
@@ -1064,7 +1064,7 @@ export function resolveArtifactType(declared: string | undefined, filename: stri
 ```
 
 
-<!-- source-sha256: 8e504c660107d7b05ced8c9c5b8a811e7b956ebec7f1e69670bf199ccdb1f4dd; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 8e504c660107d7b05ced8c9c5b8a811e7b956ebec7f1e69670bf199ccdb1f4dd; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## previewableArtifactType
 
@@ -1081,7 +1081,7 @@ export function previewableArtifactType(type: string): boolean;
 ```
 
 
-<!-- source-sha256: 8e504c660107d7b05ced8c9c5b8a811e7b956ebec7f1e69670bf199ccdb1f4dd; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 8e504c660107d7b05ced8c9c5b8a811e7b956ebec7f1e69670bf199ccdb1f4dd; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createQuotaRecovery
 
@@ -1098,7 +1098,7 @@ export function createQuotaRecovery(client: KitClient): { recheck(): Promise<boo
 ```
 
 
-<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## readQuotaExceeded
 
@@ -1115,7 +1115,7 @@ export function readQuotaExceeded(error: unknown): QuotaExceededDetails | null;
 ```
 
 
-<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## usageLimitsAllowSending
 
@@ -1132,7 +1132,7 @@ export function usageLimitsAllowSending(view: MemberUsageLimitView): boolean;
 ```
 
 
-<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: d878971a9abfd2c39b6b1942338b56b1a9c5310b26814a1dd9f7050f33ba7129 -->
+<!-- source-sha256: 4994a0da16da310658524317b1c944492d0d50383b3ef534ef3717ab61b4bf9d; doc-sha256: 49748018d47a86b2505560b021d434d96e7c81b0a4ae4259e8201ae70250879b -->
 
 ## createQuery
 
