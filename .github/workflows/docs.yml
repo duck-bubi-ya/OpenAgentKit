@@ -2,8 +2,7 @@ name: Deploy docs
 
 on:
   push:
-    # 临时：首次验收期间允许当前分支部署；合并 main 前移除该分支。
-    branches: [main, codex/docs-github-pages]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -55,8 +54,7 @@ jobs:
           retention-days: 1
 
   deploy:
-    # 临时：与上方 push 分支保持一致，验收后恢复为仅 main。
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/codex/docs-github-pages'
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
