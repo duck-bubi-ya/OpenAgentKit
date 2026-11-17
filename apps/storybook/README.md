@@ -64,8 +64,9 @@ python3 -m http.server 3010 --bind 127.0.0.1 --directory .scratch/pages
 访问 `http://127.0.0.1:3010/OpenAgentPack-Kit/`。根路径构建仍可直接托管
 `apps/storybook/out`，不要与子路径模拟混淆。
 
-如后续绑定自定义域名，添加 `public/CNAME` 并配置 DNS；`configure-pages` 对根域名会返回空
-`base_path`，代码无需改动，重新构建即可。
+如后续绑定自定义域名，在仓库 **Settings → Pages → Custom domain** 中保存域名，再按域名类型配置 DNS。
+部署到域名根路径时，`configure-pages` 返回空的 `base_path`，重新运行部署即可。
+[GitHub Pages 自定义域名配置](https://docs.github.com/en/pages/configuring-a-custom-domain-for-your-github-pages-site/managing-a-custom-domain-for-your-github-pages-site)
 
 ## 修改内容
 

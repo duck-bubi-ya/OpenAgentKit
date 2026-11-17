@@ -59,13 +59,15 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await expect.poll(() => viewportWidth(viewport)).toBeLessThan(768);
 	await expect(menu).toBeVisible();
 	await expect(input).toHaveText(DRAFT);
+	// 先将父页面中的整个 iframe 滚入视口，抽屉按钮才有可点击的坐标。
+	await viewport.scrollIntoViewIfNeeded();
 	await menu.click();
 	await expect(drawer).toBeVisible();
 	await expect(drawer.getByText("演示用户", { exact: true })).toBeVisible();
 	await drawer
 		.getByRole("navigation", { name: "预览主导航", exact: true })
 		.getByRole("button", { name: "我的用量", exact: true })
-		.dispatchEvent("click");
+		.click();
 	await expect(drawer).toHaveCount(0);
 	await expect(preview.getByRole("heading", { name: "我的用量", exact: true })).toBeVisible();
 	await expect(input).toHaveCount(0);
@@ -74,14 +76,14 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 	await drawer
 		.getByRole("navigation", { name: "预览主导航", exact: true })
 		.getByRole("button", { name: "对话", exact: true })
-		.dispatchEvent("click");
+		.click();
 	await expect(drawer).toHaveCount(0);
 	await expect(input).toHaveText(DRAFT);
 	await menu.click();
 	await drawer
 		.getByRole("navigation", { name: "最近会话", exact: true })
 		.getByRole("button", { name: "开发票", exact: true })
-		.dispatchEvent("click");
+		.click();
 	await expect(drawer).toHaveCount(0);
 	await expect(preview.getByText("开发票", { exact: true })).toBeVisible();
 	await expect(input).toHaveText(DRAFT);
@@ -107,19 +109,26 @@ test("Layout 文档预览：1280px 桌面及窗口缩放保持桌面视口，设
 // 保护受控确认状态跨断点迁移：取消不删数据，显式确认才删除，随后正文仍可交互。
 test("Layout 文档预览：抽屉内删除跨设备后仍可取消与确认", async ({ page }) => {
 	await page.setViewportSize({ width: 1280, height: 900 });
-	const { preview, input, menu, drawer } = await openLayoutPreview(page);
-	const session = preview.getByRole("button", { name: "订单 2026101 物流异常", exact: true }).first();
+	const { viewport, preview, input, menu, drawer } = await openLayoutPreview(page);
+	const recent = preview.getByRole("navigation", { name: "最近会话", exact: true });
+	const session = recent.getByRole("button", { name: "订单 2026101 物流异常", exact: true });
 	const confirmation = preview.getByRole("alertdialog", { name: "删除会话", exact: true });
 	await expect(session).toBeVisible();
 	await input.fill(DRAFT);
 
 	for (const action of ["取消", "确认"] as const) {
 		await page.getByRole("button", { name: "手机", exact: true }).click();
+		await expect.poll(() => viewportWidth(viewport)).toBeLessThan(768);
+		await viewport.scrollIntoViewIfNeeded();
 		await menu.click();
-		await expect(drawer.getByRole("button", { name: "订单 2026101 物流异常", exact: true }).first()).toBeVisible();
+		const group = drawer.getByRole("button", { name: /^客服助手/ });
+		await group.click();
+		await expect(group).toHaveAttribute("aria-expanded", "true");
+		const groupSessions = drawer.getByRole("navigation", { name: "会话列表：客服助手", exact: true });
+		await expect(groupSessions.getByRole("button", { name: "订单 2026101 物流异常", exact: true })).toBeVisible();
 		// 菜单弹层 Portal 到 iframe body，不在 drawer 子树内。
-		const menuTrigger = drawer.getByRole("button", { name: "更多操作", exact: true }).first();
-		await menuTrigger.dispatchEvent("pointerdown", { button: 0, pointerType: "mouse" });
+		const menuTrigger = groupSessions.getByRole("button", { name: "更多操作", exact: true }).first();
+		await menuTrigger.click();
 		await expect(preview.getByRole("menuitem", { name: "删除", exact: true }).first()).toBeVisible();
 		await preview.getByRole("menuitem", { name: "删除", exact: true }).first().click();
 		await expect(confirmation).toBeVisible();
@@ -132,13 +141,14 @@ test("Layout 文档预览：抽屉内删除跨设备后仍可取消与确认", a
 		await page.setViewportSize({ width: 390, height: 844 });
 		await expect(confirmation).toBeVisible();
 		await page.setViewportSize({ width: 1280, height: 900 });
-		await confirmation.getByRole("button", { name: action, exact: true }).dispatchEvent("click");
+		await viewport.scrollIntoViewIfNeeded();
+		await confirmation.getByRole("button", { name: action, exact: true }).click();
 		await expect(confirmation).toHaveCount(0);
 		await expect(input).toHaveText(DRAFT);
 		if (action === "取消") await expect(session).toBeVisible();
 		else await expect(session).toHaveCount(0);
 	}
-	await preview.getByRole("button", { name: "开发票", exact: true }).first().dispatchEvent("click");
+	await recent.getByRole("button", { name: "开发票", exact: true }).click();
 	await expect(input).toBeEditable();
 	await expect(input).toHaveText(DRAFT);
 });

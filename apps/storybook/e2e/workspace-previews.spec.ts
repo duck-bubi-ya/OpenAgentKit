@@ -1,6 +1,13 @@
 import { expect, test } from "./fixtures.ts";
 import { previewFrame, sitePath } from "./paths.ts";
 
+test("首页功能卡保留站点路径并打开组件总览", async ({ page }) => {
+	await page.goto(sitePath("/"));
+	await page.getByRole("link", { name: /^headless hooks \+ copy-in 组件/ }).click();
+	await expect(page).toHaveURL(sitePath("/docs/components/"));
+	await expect(page.getByRole("heading", { level: 1, name: "组件总览", exact: true })).toBeVisible();
+});
+
 // 搜索仍能从站点打开；预览内的快捷键不能劫持焦点、导航或共享主题。
 test("站点搜索可用，预览内搜索快捷键保留草稿与页面", async ({ page }) => {
 	await page.goto(sitePath("/docs/"));
