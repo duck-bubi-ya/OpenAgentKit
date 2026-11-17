@@ -29,7 +29,7 @@
 | `packages/sdk` | 按功能组织的数据 SDK、协议、Provider 和可选 React hooks |
 | `packages/chat-ui` | 可 copy-in 的 Chat 产品组件、主题与 registry |
 | `packages/eval` | Node 侧 Skill 评测库及命令入口 |
-| `scripts/skills` / `assets/skills` | 英文开发 Skill 的人工源及生成物 |
+| `scripts/skills` / `assets/skills` | 中文开发 Skill 的人工源及生成物 |
 | `scripts/kit` | 组件复制与组件目录脚本 |
 | `docs` / `.scratch` | 权威文档与研究 / 被忽略的临时探针、日志、截图 |
 
@@ -81,7 +81,7 @@
 ## 修改与文档维护
 
 - 项目文档使用中文；标识符、命令、Schema 及必要上游原文保留原语言，对外发布时补英文版。
-  开发 Skill 的入口、参考、元数据和示例使用英文（ADR-0027）。
+  开发 Skill 的入口、参考、元数据和示例文案使用中文，保留 Skill ID 与 API 标识符（见 ADR-0027 状态更新）。
 - 根文件保留全仓规则，局部 AGENTS.md 保留职责、不变量、修改步骤与验收入口。
   产品合同、页面细节和长期证据分别回到现有权威文档或 `docs/research/`，
   不创建平行规范或堆积逐次工作记录。

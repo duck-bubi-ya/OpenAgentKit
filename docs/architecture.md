@@ -134,7 +134,7 @@ apps/web / apps/console / packages/chat-ui
 - 由 `.dependency-cruiser.cjs` 强制，规则名与包级 `AGENTS.md` 一一对应。
 
 Skill 是开发期内容，不加入上述运行时分层。人工源与生成脚本位于 `scripts/skills/`，
-最终 Skill 生成到 `assets/skills/`。脚本读取 Kit 公开 TypeScript 类型与导出，生成英文
+最终 Skill 生成到 `assets/skills/`。脚本读取 Kit 公开 TypeScript 类型与导出，生成中文
 API 参考和文档站示例。这些示例只引用公开包入口，按文档编译用途排除孤立入口检查，
 不放宽实际运行时代码的依赖边界。Skill 不执行网络接入，不取代 `ChatProvider`、hooks
 或 SDK 的实现。
