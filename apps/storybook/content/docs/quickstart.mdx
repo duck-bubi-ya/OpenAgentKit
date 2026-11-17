@@ -1,9 +1,10 @@
 ---
 title: 快速开始
-description: 安装依赖、生成管理员令牌，以 Mock 模式启动本地服务
+description: 一键引导 Mock 或真实百炼配置，生成管理员令牌并启动本地服务
 ---
 
-本页用 **Mock 模式 + 成员登录** 完成本地安装、配置与启动，不需要百炼凭据。
+运行 `pnpm start` 即可完成首次配置并启动本地服务。可选择 **Mock**（无需百炼凭据）或
+**真实百炼**；两种模式默认都使用成员登录。
 
 ## 安装并启动
 
@@ -11,46 +12,37 @@ description: 安装依赖、生成管理员令牌，以 Mock 模式启动本地�
 
 ```bash
 pnpm install
-pnpm setup
-[ -f .env ] || cp .env.example .env
+pnpm start
 ```
 
-`ADMIN_TOKEN` 是本项目管理端的登录密钥，相当于管理员密码。首次配置时，在终端生成：
+根目录没有 `.env` 时，终端会引导选择：
 
-```bash
-openssl rand -hex 32
-```
+- **Mock**：直接回车或选择 `1`，无需云凭据，使用内置模拟网关。
+- **真实百炼**：选择 `2`，输入 API Key（输入不回显），然后填写 Workspace ID 或 Base URL。
 
-OpenSSL 是开源加密工具；上面的命令生成 32 字节安全随机数，并输出为 64 个十六进制字符。
-复制输出的字符串，之后用它登录管理端。已有管理员令牌时可沿用。
+启动器从 `.env.example` 创建 `.env`，自动生成 32 字节安全随机数作为管理员令牌（64 个十六进制字符），
+并限制新文件仅当前用户可读写。引导完成后会先构建所需工作区依赖，再启动 server、体验页和管理端。
+中途按 Ctrl+C 会取消引导，不生成半份配置；可重新运行 `pnpm start`。
 
-编辑根 `.env`，更新以下字段，保留其他已有配置与凭据；将 `ADMIN_TOKEN` 的占位内容替换为
-刚生成的随机字符串：
+**已有 `.env` 时直接复用整个文件**，不再询问模式、不替换令牌或补写字段。
+已有配置不完整时请手动补齐；切换模式或修改配置后需重启服务。
+根 `.env` 的非空值覆盖 shell 同名变量。填入 Workspace ID 或 Base URL 后，另一地址字段的显式空值
+也会覆盖 shell 继承值。启动日志只打印被覆盖的变量名。
 
-```dotenv
-KIT_GATEWAY=mock
-KIT_AUTH_MODE=member
-KIT_DATA_DIR=.scratch/local-demo/data
-ADMIN_TOKEN=<粘贴生成的随机字符串>
-PORT=8787
-```
+新生成的 Mock 配置使用 `.scratch/local-demo/data`，真实百炼配置使用 `.data`，用于隔离两种模式的数据。
+重复体验时保留相应目录即可沿用已有模版和成员。
 
-这个数据目录专用于本次演示；重复体验时保留它即可沿用已有模版和成员。
-根 `.env` 的非空值覆盖 shell 同名变量，修改配置后需重启服务。
+`ADMIN_TOKEN` 是管理端的登录密钥，相当于管理员密码。生成后请从本地根 `.env` 的
+`ADMIN_TOKEN` 字段读取并用于登录；终端不会打印令牌原文。体验页使用在管理端创建的成员账号。
 
-启动 server、体验页和管理端：
-
-```bash
-pnpm dev server web console
-```
-
-启动器会先构建所需依赖。另开终端检查：
+另开终端检查服务：
 
 ```bash
 curl http://localhost:8787/healthz
 ```
 
-健康检查应显示 `gateway=mock`。默认入口如下，实际地址以启动日志为准：
+选择 Mock 时应显示 `gateway=mock`，真实百炼应显示 `gateway=sdk`。
+默认入口如下，实际地址以启动日志为准：
 
 | 入口 | 默认地址 |
 | --- | --- |
@@ -58,11 +50,16 @@ curl http://localhost:8787/healthz
 | 体验页 | `http://localhost:5173` |
 | Kit Server | `http://localhost:8787` |
 
-此时管理端显示令牌登录页，体验页显示成员登录页。不带目标的 `pnpm dev` 还会启动文档站 `:3000`。
+此时管理端显示令牌登录页，体验页显示成员登录页。
+健康检查只证明服务已启动，真实百炼凭据和云端对话仍需在实际使用时验证。
+
+后续启动继续执行 `pnpm start`。需要指定目标时使用 `pnpm start server web`；
+开发者也可使用 `pnpm dev` 启动默认四个目标（包含文档站 `:3000`），或用
+`pnpm dev server web console` 只起应用。`pnpm setup` 是可选的 Git hooks 安装命令，不负责生成配置。
 
 ## 接下来
 
 创建模版、上架和完成成员对话，请参照[本地跑通完整 Demo](/docs/local-demo)。
 
-- [生成独立项目](/docs/guides/#生成独立项目)：使用脚手架搭建自己的应用。
+- [定制自己的页面](/docs/guides/#定制自己的页面)：复用 SDK、hooks 与组件接入自己的应用。
 - [参与开发与验收](/docs/contributing/#门禁)：修改仓库代码后运行门禁与专项回归。

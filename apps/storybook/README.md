@@ -11,7 +11,7 @@ OpenAgentPack Kit 的官方文档站与组件展示站，使用 Next.js + Fumado
 - **文档**：快速开始、本地 Demo、核心概念、SDK 接入、组件、Skill 与部署。
 - **接口参考**：从 `apps/server/openapi.json` 生成的 `/docs/api/**` 页面。
 - **组件预览**：`/previews/*` 直接渲染真实的 `@openagentpack/kit-chat-ui`，不是截图。
-- **Skill 文档**：英文 Skill 入口、安装说明、生成参考与可编译示例。
+- **Skill 文档**：中文 Skill 入口、安装说明、生成参考与可编译示例。
 - **静态搜索**：构建时生成搜索索引，部署后无需搜索服务。
 
 ## 快速开始

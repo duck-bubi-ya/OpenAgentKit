@@ -30,15 +30,12 @@ OpenAgentPack Kit 的服务端：用 Hono 包装百炼 Managed Agent，向体验
 
 ```bash
 pnpm install
-cp .env.example .env      # 填入 BAILIAN_API_KEY 与 workspace/base url
-pnpm dev server           # http://localhost:8787
+pnpm start server        # 首次引导配置，随后只启动 server :8787；已有 .env 原样复用
 ```
 
-没有百炼凭据时，直接用 mock gateway：
-
-```bash
-KIT_GATEWAY=mock pnpm --filter @openagentpack/kit-server dev
-```
+首次可选择 Mock（无需百炼凭据）或真实百炼（API Key + Workspace ID / Base URL）。
+启动器生成随机 `ADMIN_TOKEN` 并写入根 `.env`，不在终端打印令牌或 API Key。
+不带目标的 `pnpm start` 同时启动体验页与管理端；已有配置可继续用 `pnpm dev server`。
 
 只跑已构建的服务端：
 

@@ -6,19 +6,39 @@
 apps/            可运行应用（server / web / console / storybook）
 packages/        可复用包（sdk / chat-ui / eval）
 assets/          生成产物（当前为 assets/skills；dist 不入库）
-templates/       脚手架源模板（web-experience）
 docs/            权威文档（见 AGENTS.md 权威顺序）+ adr/ research/
-scripts/         仓库级脚本（dev、kit、skills、check-docs、check-no-inner-deps、lint-changed、build-release）
+scripts/         仓库级脚本（start、dev、kit、skills、check-docs、check-no-inner-deps、lint-changed、build-release）
 .githooks/       本地 hook（core.hooksPath）；完整本地验收使用 pnpm gate
 ```
 
 - 上游 SDK 使用 npm 正式发布的 `@openagentpack/sdk@0.10.0`，由精确版本与
   `pnpm-lock.yaml` integrity 锁定。
+- `scripts/start.mjs` 提供 `pnpm start`：仅在根 `.env` 不存在时交互配置 Mock / 真实百炼并生成
+  管理员令牌，已有文件原样复用；完成后接续 `scripts/dev.mjs` 的依赖构建与启动流程。
 - `scripts/build-release.mjs` 负责构建四个部署目标并收集后端生产依赖；产物放在被忽略的
   `.scratch/releases/kit-*`，不把 `.env` 或本地数据库纳入发布产物。
-- `scripts/kit/` 承载仓库内脚手架命令：`kit:create`、`kit:add`、`catalog:list`。
+- `scripts/kit/` 承载组件复制与组件目录命令：`kit:add`、`catalog:list`。
   它不是 workspace 包，不发布 npm，也不提供独立 bin；外部可分发 CLI 的
-  决策见 ADR-0022。`create` 生成的项目会得到指向本仓库脚本的 `pnpm kit:add` 命令。
+  决策见 ADR-0022。在仓库根目录运行 `pnpm kit:add <component> --dir <project>`，
+  将组件源码复制到已有项目。
+
+## AGENTS.md 的组织与维护
+
+| 位置 | 范围与责任 |
+| --- | --- |
+| 根 `AGENTS.md` | 全仓入口、权威顺序、目录导航、执行红线及共同工作规则 |
+| `apps/*/AGENTS.md` | 应用职责、局部边界、修改步骤与验收入口 |
+| `packages/*/AGENTS.md` | 包的状态/数据所有权、公开面、依赖方向与合同验证 |
+| `scripts/skills/AGENTS.md` | 开发 Skill 人工源、生成、校验与分发链路，包含对生成物的维护约束 |
+
+局部文件统一按「职责与入口 → 不变量 → 修改步骤 → 验收」组织，引用根规则和有关权威文档。
+不复制完整页面规格、版本/页数快照或逐次迁移记录；产品合同进入接口/协议/架构，源码放置进入本文，
+长期上游证据进入 research，难以撤销的决定进入 ADR。既有保护用户流程的规则不能只因缩短篇幅删除，
+应保留不变量或指向实际拥有该合同的文档及测试。
+
+修改目录、公开入口、命令、组件栈或确认例外时，同时核对根文件、局部文件和拥有规则的权威文档。
+已标记替代的 ADR 正文仅作背景，不据此恢复旧入口；Turborepo/Next 自动维护块保留原文，
+不能因整理而删去版本文档读取要求。生成资产不新增平行人工规则源。
 
 ## 包内
 
@@ -27,7 +47,7 @@ packages/<name>/
   src/            源码；公开入口见 package exports（SDK 按功能设置）
   src/protocol/generated/  自动生成的 OpenAPI 类型，不手改、不写测试
   tests/          跨模块测试与 fixture；单文件单测与源码同目录 <name>.test.ts
-  AGENTS.md       该包不变量 + 「加一个新 X 时」步骤 + 强制它的闸门
+  AGENTS.md       职责与入口 + 不变量 + 修改步骤 + 验收
   package.json    private: true（开源前）+ publishConfig（开源后直接发）
   tsconfig.json   extends ../../tsconfig.base.json
   tsup.config.ts  需要产 dist 的包（sdk/chat-ui/eval）
@@ -197,9 +217,9 @@ scripts/skills/
   src/<skill-name>/
     metadata.json   name / description / displayName / shortDescription / defaultPrompt
     skill.md        SKILL.md 正文
-    catalog.json    公开 API 到英文用途、文档与示例的映射
-    references/     英文行为说明
-    examples/       英文 TS/TSX 示例，参与类型检查并同步到文档站
+    catalog.json    公开 API 到中文用途、文档与示例的映射
+    references/     中文行为说明
+    examples/       TS/TSX 示例，含中文注释和文案，参与类型检查并同步到文档站
   generate.mjs      生成、校验与 API 模型入口
   pack.mjs          确定性离线打包
   tests/            生成、链接、打包与浏览器边界测试
@@ -214,10 +234,11 @@ assets/skills/
   为范围依据，不能只检查 registry 顶层项。内部实现组件不进入公开 API。
 - `use-kit-chat` 指导 Hook 与生命周期；`kit-chat-provider` 指导默认及自建百炼后端合同。
   三者共用现有公开类型，不复制协议实现、不引入第二套事件模型。
-- Skill 正文、参考、元数据、示例注释与示例界面文案使用英文；本站说明与权威文档仍为中文。
+- Skill 正文、参考、元数据、示例注释与示例界面文案使用中文；Skill ID、文件名、API
+  标识符和协议值沿用公开合同。
 - `pnpm gen:skills` 从 `scripts/skills/src/` 生成 `assets/skills/`、API 参考与 MDX 示例；
   `pnpm check:skills` 只检查，`pnpm pack:skills` 生成离线包。生成区不手改。
-- `pnpm typecheck:skills` 编译示例，`pnpm test:skills` 保护生成漂移、链接、英文内容、
+- `pnpm typecheck:skills` 编译示例，`pnpm test:skills` 检查生成漂移、链接、
   独立离线包和浏览器依赖边界。语义说明与 API 结构分别维护并共同校验。
 - 文档站入口为 `apps/storybook/content/docs/skill/index.mdx`，保留 `/docs/skill/` URL。
   下载文件由构建准备到 `apps/storybook/public/skills/`，不提交这些复制件或压缩包。
@@ -270,7 +291,7 @@ console `src/lib/admin/use-member-usage.ts` 只订阅 Controller 并管理生命
 `services/auth-stream.ts` 负责已建立 SSE 的撤销 / 到期。文件归属在
 `services/files.ts`、`store/files.ts`，不保存文件字节或事件正文。
 SDK 的 `auth/member-auth.ts` 管理固定身份 Client 与认证状态；`auth/hooks/` 的
-`useMemberAuth` 绑定生命周期。体验页与生成模板的 `features/auth/` 只负责表单、浏览器
+`useMemberAuth` 绑定生命周期。体验页的 `features/auth/` 只负责表单、浏览器
 sessionStorage 和页面闸门，不复制 HTTP / SSE 认证逻辑。
 
 体验页两级会话目录合同在 `packages/sdk/src/protocol/session-directory.ts`；server 的
@@ -285,19 +306,6 @@ sessionStorage 和页面闸门，不复制 HTTP / SSE 认证逻辑。
 完整数值提示，不参与计量与准入判断；边界及舍入合同由同目录测试保护。
 `lib/beijing-time.ts` 统一用户端绝对时间的北京时间转换与服务端聚合日起点展示；
 同目录测试覆盖跨日、跨年与无效时间，浏览器在其他时区验证输出仍固定为北京时间。
-
-## templates/web-experience（脚手架源模板）
-
-```
-src/features/auth/        成员登录表单与 sessionStorage 闸门
-src/lib/host.ts           模板真实需要的宿主保存能力
-src/lib/kit.ts            SDK / chat-ui 装配
-src/app.tsx / main.tsx    最小体验页入口
-```
-
-- 仅作为 `pnpm kit:create` 的复制源，不是 workspace 应用；生成时会写入 `kit.repo.json`、
-  改 tsconfig 与 Tailwind `@source` 路径，并注入 `pnpm kit:add`。
-- 模板只保留可独立 install → typecheck → build 的最小体验页。
 
 ## 不放这里的东西
 
