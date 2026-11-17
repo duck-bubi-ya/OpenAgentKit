@@ -127,7 +127,7 @@ Skill 漂移，不能代替规范语义审查。仅文档调整的验证选择�
 
 仓库 `.githooks/` 提供暂存区 lint、提交格式和推送验证；只有 `core.hooksPath` 指向它时才生效，
 不要假定个人全局 hook 已执行仓库门禁。Hook 可被 `--no-verify` 绕过，是便利而非强制。
-仓库不提供 CI 流水线配置；需要完整验收时运行 `pnpm gate`。
+文档站通过 GitHub Actions 发布到 GitHub Pages。完整验收使用 `pnpm gate`。
 
 提交信息使用简体中文 Conventional Commits：`<type>(scope): <description>`，每行不超过
 100 字符。scope 使用 `sdk`、`chat-ui`、`eval`、`server`、`web`、`console`、
