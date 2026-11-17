@@ -38,7 +38,9 @@ SSE 发出 `error`（`code: unauthorized`、`retryable: false`）并关闭；客
 `reset/ready/done/error/ping/operation` 不是业务事件，不进入消息归并。
 重建采用 `reset → 历史 event → 缓冲 event → ready → 实时 event`，客户端在 ready 原子切换
 Provider 事件集合。普通 Turn 结束和等待工具批准都保留连接；会话切换/卸载取消浏览器订阅，
-最后一个订阅者离开后释放上游连接。
+最后一个订阅者离开后，非 running 的 pump 释放上游连接；仍在 running 的回合继续在服务端
+有界跟踪，以匹配本轮 Provider 终态并更新目录索引。当前脱离订阅的跟踪上限为 30 分钟，
+到期释放内存与连接，不发送 interrupt，也不将超时推断为业务完成；后续查询仍按历史与状态对账。
 
 ## 默认 Gateway 与历史恢复
 
@@ -285,12 +287,12 @@ CR/LF/CRLF、多行 `data`、注释心跳与业务 JSON 分别处理，业务对
 ## 确认令牌（破坏性动作）
 
 ```
-POST /api/admin/projects/:name/plan
-  body { action: "apply" | "publish" | "destroy" | "restore", version_id? }
+POST /api/admin/resource-drafts/:name/resources/plan
+  body { action: "publish" }
   → 200 { data: { plan_id, confirm_token, diff, destructive, expires_at } }
-POST /api/admin/projects/:name/apply
+POST /api/admin/resource-drafts/:name/resources/publish
   body { plan_id, confirm_token }
-  → 202 { data: { operation_id } }  # 缺/伪造/重放令牌 → 428 confirmation_required
+  → 202 { data: { operation_id } }
 ```
 
 会话级破坏性动作走同一条闸门（`action: archive | delete`）：
@@ -305,22 +307,28 @@ DELETE /api/kit/sessions/:sessionId        body { plan_id, confirm_token }
 - 字段名一律 snake_case（与 openapi.json 一致）；token 是服务端 HMAC 签名的一次性串，
   绑定 `plan_id + 动作 + subject`，默认 TTL 5 分钟；
 - 消费即失效（重放 428）；空/畸形令牌先被 schema 拦下（400 invalid_request）；
-  `destructive=false` 的项目 plan 也必须展示 diff 并由用户显式确认后回传；
-- **服务端与所有脚本都不得代替用户生成或补全确认**，也不存在 `--yes` 之类的旁路参数。
+  有实际资源变更的发布即使 `destructive=false`，也必须展示 diff 并由用户显式确认；
+  声明与 state 都为空的只读空计划不触发发布或远端写入。
+- **服务端与脚本不得代替用户作出确认**，不存在 `--yes` 或固定确认标记的旁路。
+  已授权拥有的临时调试 Session 可按页面生命周期准备删除计划并携带有效令牌清理，
+  不授权自动删除成员会话、他人资源或结果未知的批次。
+- UI 展示与服务端闸门分别遵循合同：Web / chat-ui 使用 AlertDialog；Console 可使用
+  受管焦点的 antd Modal。模版上下架单次说明目标/影响，模版删除按接口约定只展示确认提示；
+  这些展示例外不取消计划及令牌校验（ADR-0015）。
+- 模版编辑/历史应用与限额更新是已有本地配置接口：前者确认生效影响并校验 `base_version`，
+  后者展示配置差异；不能凭 UI 确认要求臆造 SDK apply、Plan 或令牌字段。
 
-### 项目审阅与长任务恢复
+### 资源批次审阅与长任务恢复
 
-项目 Plan 在服务端保存项目、管理员主体、动作、审阅源码 revision、Build hash 与计划指纹。
-执行前再次读取，并在 SDK 目录锁内核对；修改声明使旧 Plan 失效，远端变化也需要重新生成
-计划。Restore 另外绑定目标版本、当前 head 和源码 revision，只恢复源码，不改变远端。
-所有确认按钮使用 AlertDialog 展示影响，缺少、伪造和重放令牌不能执行。
+Kit 只提供 `/api/admin/resource-drafts/:name/resources` 的 YAML 批次发布；目录 Project、
+Build、源码版本、Restore 和目录锁执行链路已经退役（ADR-0018）。历史 DTO 中的 Project 命名
+及旧 Operation 记录不表示仍支持这些入口；现行操作以 `interfaces.md` 的 op 表为准。
 
-模版资源批次通过 `/api/admin/resource-drafts/:name/resources` 使用同一确认与 Operation 合同。
-新批次的 Plan 绑定 Kit revision、当前 YAML 哈希、上传内容哈希及 SDK 返回的 `resource-plan-v1:` 语义指纹；
+批次 Plan 绑定管理员主体、Kit revision、当前 YAML 哈希、上传内容哈希及 SDK 返回的 `resource-plan-v1:` 语义指纹；
 执行前在批次互斥保护下重新规划核对，匹配后执行同一 SDK 计划。前端不调用目录 Build，接口不暴露源码路径或 SDK state。
 成功证明与回执先持久化，再清理临时声明和 state；部分成功或重启中断保留现场，禁止自动重发（ADR-0017）。
 
-Apply/Publish/Destroy 受理后立即返回 operation_id，后台执行；Operation SSE 每次连接先
+批次 Publish 受理后立即返回 operation_id，后台执行；Operation SSE 每次连接先
 返回当前完整快照，再推送阶段、脱敏日志、结果与终态 done。客户端从持久的 ID 恢复观察；
 自然 EOF/45 秒静默超时重连观察流（500ms 起、最大 15 秒、8 次、±20%），不重发写请求。
 迟到的初始 GET 不能覆盖较新 SSE。服务重启后 pending/running 标为 failed/interrupted，

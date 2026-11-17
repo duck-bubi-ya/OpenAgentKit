@@ -14,7 +14,7 @@ const ITEMS = [
 	"plan → 确认 → apply 闸门",
 	"openapi ↔ 文档双向校验",
 	"scripts/kit",
-	"pnpm kit:create / kit:add / catalog:list",
+	"pnpm kit:add / catalog:list",
 	"app-local host capabilities",
 	"Web / H5 自适应",
 ];

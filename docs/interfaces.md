@@ -578,4 +578,4 @@ Credits 政策、审批、override 或加油包操作。本地成员使用新月
 | `ArtifactHost` | `packages/sdk/src/files/artifacts.ts` | 宿主注入预览与保存回调；SDK 不访问浏览器交互 API，不携带身份配置 |
 | `ChatProvider` | `packages/sdk/src/providers/contract.ts` | Controller；五项必需操作、可选线程列表/事件查询与消息转换策略 |
 | `MessageTransformer` / `ChatMessage` | `packages/sdk/src/messages/` | Provider 定义转换，Chat 调用并持有结果，UI 消费消息 |
-| `HostCapabilities` | `apps/web/src/lib/host.ts`、`templates/web-experience/src/lib/host.ts` | 壳注入 `window.__OPENAGENTPACK_KIT_BRIDGE__`，浏览器 fallback；不进入 SDK |
+| `HostCapabilities` | `apps/web/src/lib/host.ts` | 壳注入 `window.__OPENAGENTPACK_KIT_BRIDGE__`，浏览器 fallback；不进入 SDK |

@@ -12,13 +12,6 @@
     "typecheck": {
       "dependsOn": ["^build"]
     },
-    "kit-web-experience#typecheck": {
-      "dependsOn": [
-        "^build",
-        "@openagentpack/kit-sdk#build",
-        "@openagentpack/kit-chat-ui#build"
-      ]
-    },
     "test": {
       "dependsOn": ["^build"]
     },

@@ -129,7 +129,7 @@ module.exports = {
 			name: "apps-sdk-public-entries",
 			comment: "应用只能消费 SDK 的公开入口，不得依赖私有源码或构建分片（ADR-0025）",
 			severity: "error",
-			from: { path: "^(apps|templates)/" },
+			from: { path: "^apps/" },
 			to: {
 				path: "^packages/sdk/(src|dist)/",
 				pathNot: [sdkPublicSources, sdkPublicDist],

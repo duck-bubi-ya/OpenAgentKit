@@ -26,7 +26,7 @@
 
 | 使用方式 | 交付内容 | 如何开始 |
 | --- | --- | --- |
-| 搭建完整应用 | 体验页、管理端、Kit Server、仓库脚手架与示例 | 配置服务，导入或创建 Agent，调试并上架，向成员开放使用 |
+| 搭建完整应用 | 体验页、管理端、Kit Server 与示例 | 配置服务，导入或创建 Agent，调试并上架，向成员开放使用 |
 | 集成到已有系统 | UI 组件、会话运行时、React hooks 与开发 Skill | 复用完整对话界面，或按需组合组件，通过适配层连接现有百炼后端 |
 
 这两条路径复用同一套会话契约与展示能力。团队可以先运行完整应用验证流程，
@@ -76,7 +76,7 @@ Kit Context 由 `@openagentpack/kit-sdk/providers/kit/react` 提供。
 两者分别服务开发过程与业务执行。可直接浏览 [`assets/skills/`](./assets/skills)，
 接入说明见[开发 Skill 文档](./apps/storybook/content/docs/skill/index.mdx)。
 
-仓库脚手架、组件交互预览、接口文档和示例共同提供接入参考。项目还提供 Skill 效果评测工具，
+组件复制工具、组件交互预览、接口文档和示例共同提供接入参考。项目还提供 Skill 效果评测工具，
 支持通过测试案例、断言、报告与版本差异检查评估技能迭代效果。
 
 ## 界面预览
@@ -144,8 +144,8 @@ Kit 部署在团队自己的环境中，提供应用界面、身份与运营管�
 | UI 组件 | `@openagentpack/kit-chat-ui` | copy-in Chat 产品 UI（Radix + Tailwind v4） |
 | 服务端 | `@openagentpack/kit-server` | Hono 应用工厂：数据面 `/api/kit/*`、控制面 `/api/admin/*` |
 
-仓库内脚手架与打包命令位于 `scripts/kit/`，通过根 `pnpm kit:create`、`pnpm kit:add`、
-`pnpm catalog:list` 调用。
+组件复制与组件目录命令位于 `scripts/kit/`，在仓库根目录通过
+`pnpm kit:add <component> --dir <project>`、`pnpm catalog:list` 调用。
 
 应用：`apps/web`（体验页）、`apps/console`（管理端）、`apps/server`（服务端）。
 
@@ -164,11 +164,10 @@ OpenAgentPack-Kit/
 │   └── eval/                   # Skill 效果评测工具
 ├── assets/
 │   └── skills/                 # 生成的开发 Skill，供 coding agent 使用
-├── templates/
-│   └── web-experience/         # 体验页脚手架模板
 ├── scripts/
-│   ├── kit/                    # 项目创建、组件复制与组件目录命令
+│   ├── kit/                    # 组件复制与组件目录命令
 │   ├── skills/                 # 开发 Skill 源码、生成与打包脚本
+│   ├── start.mjs               # 首次配置引导与一键启动
 │   └── dev.mjs                 # 本地开发启动入口
 ├── docs/                       # 项目设计与开发文档
 │   ├── adr/                    # 架构决策记录
@@ -230,19 +229,24 @@ OpenAgentPack Kit 原生对接百炼 Managed Agent（MA）协议，围绕会话�
 
 ```bash
 pnpm install
-pnpm setup                 # 让 git 使用 .githooks
-cp .env.example .env       # 填 BAILIAN_API_KEY + BAILIAN_WORKSPACE_ID
-pnpm dev                   # server :8787 + web :5173 + console :5174 + storybook :3000
-pnpm dev server web console # 只起指定目标
+pnpm start                 # 首次引导配置，随后启动 server :8787 + web :5173 + console :5174
 ```
 
-没有凭据时设 `KIT_GATEWAY=mock`，可用内置 mock gateway 端到端跑通全链路（流式事件、
-工具调用、artifact）。仓库根的 `.env` 是 dev 场景的凭据权威来源：与 shell 同名变量冲突时
-以 `.env` 为准（`scripts/dev.mjs` 只打印被覆盖的变量名，不打印值）。
+没有根 `.env` 时，启动器引导选择 Mock 或真实百炼，生成随机 `ADMIN_TOKEN`，并以仅当前用户
+可读写的权限创建 `.env`。Mock 无需百炼凭据；真实百炼需输入 API Key（不回显），再选择
+Workspace ID 或 Base URL。管理员令牌只写入 `.env`，登录管理端时从本地文件读取。
+默认使用成员登录，Mock 数据位于 `.scratch/local-demo/data`，真实百炼数据位于 `.data`。
+
+已有 `.env` 时直接复用，不重新选择模式、不替换令牌或补写字段；后续仍运行 `pnpm start`。
+根 `.env` 的非空值覆盖 shell 同名变量。填入 Workspace ID 或 Base URL 后，另一地址字段的显式空值
+也会覆盖 shell 继承值。启动日志只打印被覆盖的变量名。
+
+开发时可用 `pnpm dev` 启动上述三个应用及文档站 `:3000`，或用 `pnpm start server web` /
+`pnpm dev server web` 只启动指定目标。`pnpm setup` 可选，仅用于启用仓库 Git hooks。
 
 ### 配置
 
-复制 `.env.example` 为 `.env` 后按需填写：
+`pnpm start` 自动生成配置；也可以复制 `.env.example` 为 `.env` 后手动填写：
 
 | 变量 | 必填 | 说明 |
 | --- | --- | --- |
