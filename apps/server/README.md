@@ -97,7 +97,7 @@ pnpm --filter @openagentpack/kit-server db:generate --name add_member_remark
 pnpm --filter @openagentpack/kit-server db:check
 ```
 
-检查生成的三库迁移 SQL 和最新结构快照，将共享定义、版本快照和生成物一并提交。开发时需要
+检查生成的三库迁移 SQL 和最新结构快照，将共享定义、更新后的迁移清单、版本快照和生成物一并提交。开发时需要
 主动运行生成命令。构建产物中的 `dist/schema/` 提供三库 SQL 和结构快照供查阅。部署后，服务
 启动会自动执行所选库尚未应用的版本，并登记执行结果。
 
@@ -107,7 +107,10 @@ pnpm --filter @openagentpack/kit-server db:check
 MySQL 的每个 DDL 步骤只写一条原子语句。SQLite 需要重建被外键引用的表时，在 JSON 顶层设置
 `sqliteRebuild: true`，迁移将在提交前检查外键。
 
-新库从 `001_init` 回放历史。已有库从各自的迁移记录接续。
+三库按 [迁移清单](src/store/schema/manifest.json) 的条目顺序执行。原有 36 条在
+[history/](src/store/schema/history) 中逐条保存。生成命令会将新版本追加到同一份清单，并在
+[versions/](src/store/schema/versions) 保存版本快照和显式步骤。新库从 `001_init` 回放历史，
+已有库从各自的迁移记录接续。
 
 ## 代码结构
 

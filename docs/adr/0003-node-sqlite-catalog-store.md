@@ -3,6 +3,8 @@
 状态更新（2026-11-19）。三库共用表结构定义、历史版本 ID 和执行顺序。新库从 `001_init`
 开始回放全部历史。SQLite 继续使用原有迁移。MySQL 和 PostgreSQL 用方言生成的 DDL 及显式
 数据步骤重放历史。已初始化的外部库通过旧版本标识和结构校验接续。
+原有 36 条迁移各自保存在 `schema/history/`，和 `033` 起的新版本共用
+`schema/manifest.json` 定义顺序。
 新结构变更由 `db:generate` 生成三库的增量 SQL、版本和快照，服务启动时执行待处理版本。
 维护步骤见[服务端 README](../../apps/server/README.md#维护表结构)。
 

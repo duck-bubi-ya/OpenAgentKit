@@ -110,7 +110,7 @@ KIT_LIVE=1 pnpm --filter @openagentpack/kit-server exec tsx tests/live/smoke.ts
 | Skill 源 / 生成器 / 公开示例 | 检查或重新生成产物，编译示例，选择生成、链接、打包或浏览器边界回归 |
 | 架构、依赖配置或交付链路 | 检查依赖方向、工作区与任务图，按影响运行完整门禁或相应构建 |
 
-表结构改动运行 `db:check`，核对共享定义、已保存的 SQLite 历史和三库生成物。
+表结构改动运行 `db:check`，核对共享定义、迁移清单、逐条保存的 SQLite 历史和三库生成物。
 迁移用例 `apps/server/tests/database-migrations.test.ts` 覆盖空库回放、带数据的历史升级、旧外部库
 接续和 DDL 中途恢复。外部库用例用测试账号创建和清理独立的临时数据库。
 存储改动使用 `apps/server/tests/database-backends.test.ts` 验证登录、模版事务、会话索引、

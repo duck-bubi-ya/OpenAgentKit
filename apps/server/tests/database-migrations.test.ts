@@ -16,6 +16,7 @@ import { buildArtifacts } from "../src/store/schema/generate.ts";
 import { program as mysqlProgram } from "../src/store/schema/generated/mysql.ts";
 import { program as postgresProgram } from "../src/store/schema/generated/postgres.ts";
 import { program as sqliteProgram } from "../src/store/schema/generated/sqlite.ts";
+import manifest from "../src/store/schema/manifest.json" with { type: "json" };
 import type { MigrationProgram, Table } from "../src/store/schema/model.ts";
 import { forDialect, mysqlTableOptions } from "../src/store/schema/render.ts";
 import { migrateMysqlSchema, migratePostgresSchema } from "../src/store/schema/runner.ts";
@@ -78,6 +79,13 @@ it("共享定义生成三库新增列、索引及显式迁移，未生成变更�
 	}
 });
 
+it("MySQL 和 PostgreSQL 的迁移产物沿用完整清单顺序", () => {
+	const ids = manifest.map(({ id }) => id);
+	for (const program of [mysqlProgram, postgresProgram]) {
+		expect([...program.history, ...program.upgrades].map(({ id }) => id)).toEqual(ids);
+	}
+});
+
 it("SQLite 在已有成员上应用生成的变更，失败时回滚 DDL 和版本记录", () => {
 	const db = new DatabaseSync(":memory:");
 	try {
@@ -87,7 +95,7 @@ it("SQLite 在已有成员上应用生成的变更，失败时回滚 DDL 和版�
 				.prepare("SELECT id FROM _kit_migrations ORDER BY rowid")
 				.all()
 				.map((row) => row.id),
-		).toEqual([...sqliteHistory, ...sqliteProgram.upgrades].map(({ id }) => id));
+		).toEqual(manifest.map(({ id }) => id));
 		expect(db.prepare("SELECT monthly_credits FROM quota_policy WHERE id = 1").get()).toEqual({
 			monthly_credits: 200,
 		});

@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
+import { sqliteHistory } from "../sqlite-history.ts";
 import { compileChange, dialects, type ExplicitMigration, parseExplicit, readDefinition } from "./changes.ts";
 import { compileHistory } from "./history.ts";
+import manifest from "./manifest.json" with { type: "json" };
 import type { Dialect, Migration, MigrationProgram, Schema, Step, Table } from "./model.ts";
 import { createTableSteps, forDialect, orderedNewTables, sameSchema } from "./render.ts";
 
@@ -24,21 +26,69 @@ function read(path: string) {
 }
 
 function readVersions(): Version[] {
-	const files = readdirSync(join(root, "versions")).filter((file) => /^\d{3,}_[a-z0-9_]+\.sql$/.test(file));
-	files.sort((a, b) => Number.parseInt(a, 10) - Number.parseInt(b, 10));
-	return files.map((file, index) => {
-		const id = file.slice(0, -4);
-		if (Number.parseInt(id, 10) !== initialVersion + index || id.length > 100) throw new Error(`迁移版本不连续：${id}`);
-		const stepsPath = `versions/${id}.steps.json`;
-		const explicit = existsSync(join(root, stepsPath)) ? parseExplicit(JSON.parse(read(stepsPath))) : undefined;
-		return { id, sql: read(`versions/${file}`), ...(explicit ? { explicit } : {}) };
+	return manifest.slice(sqliteHistory.length).map(({ id, source, steps }, index) => {
+		if (source !== "version" || !/^\d{3,}_[a-z0-9_]+$/.test(id) || id.length > 100)
+			throw new Error(`无效的迁移清单条目：${id}`);
+		if (Number.parseInt(id, 10) !== initialVersion + index) throw new Error(`迁移版本不连续：${id}`);
+		const explicit = steps ? parseExplicit(JSON.parse(read(`versions/${id}.steps.json`))) : undefined;
+		return { id, sql: read(`versions/${id}.sql`), ...(explicit ? { explicit } : {}) };
 	});
 }
 
+function checkRegisteredFiles(directory: "history" | "versions", filenames: string[]) {
+	const registered = new Set(filenames);
+	for (const file of readdirSync(join(root, directory))) {
+		if (/\.(?:sql|ts|steps\.json)$/.test(file) && !registered.has(file))
+			throw new Error(`迁移清单缺少文件登记：${directory}/${file}`);
+	}
+}
+
 function verifyHistory() {
+	const filenames = sqliteHistory.map(({ id, run }) => `${id}.${run ? "ts" : "sql"}`);
+	checkRegisteredFiles("history", filenames);
+	const contents = filenames.map((file) => [file, read(`history/${file}`)]);
 	const frozen = read("history.sha256").trim();
-	const hash = createHash("sha256").update(read("../sqlite-history.ts")).digest("hex");
+	const hash = createHash("sha256").update(JSON.stringify(contents)).digest("hex");
 	if (hash !== frozen) throw new Error("SQLite 历史迁移已变更，请保留原有内容和顺序，并追加新版本");
+}
+
+function versionFiles(version: Version) {
+	const files = new Map<string, string>();
+	if (version.explicit) files.set(`${version.id}.steps.json`, `${JSON.stringify(version.explicit, null, 2)}\n`);
+	files.set(`${version.id}.sql`, version.sql);
+	return files;
+}
+
+function checkVersionFiles(versions: Version[]) {
+	checkRegisteredFiles(
+		"versions",
+		versions.flatMap((version) => [...versionFiles(version).keys()]),
+	);
+}
+
+function write(path: string, content: string) {
+	const filename = join(root, path);
+	const temporary = `${filename}.${process.pid}.tmp`;
+	try {
+		writeFileSync(temporary, content);
+		renameSync(temporary, filename);
+	} finally {
+		rmSync(temporary, { force: true });
+	}
+}
+
+function appendVersion(version: Version) {
+	for (const [file, content] of versionFiles(version)) {
+		const path = `versions/${file}`;
+		// 写入清单前中断时，同名命令可以继续登记内容一致的文件。
+		if (existsSync(join(root, path))) {
+			if (read(path) !== content) throw new Error(`未登记的迁移文件与本次生成不符：${path}`);
+		} else {
+			write(path, content);
+		}
+	}
+	const entry = { id: version.id, source: "version", ...(version.explicit ? { steps: true } : {}) };
+	write("manifest.json", `${JSON.stringify([...manifest, entry], null, 2)}\n`);
 }
 
 function sqlArtifact(sql: string[]) {
@@ -193,6 +243,7 @@ function run() {
 	const versions = readVersions();
 	if (values.check) {
 		if (values.name || values.steps) throw new Error("--check 不接收变更参数");
+		checkVersionFiles(versions);
 		checkOutputs(buildArtifacts(versions, source));
 		return;
 	}
@@ -201,11 +252,11 @@ function run() {
 		? parseExplicit(JSON.parse(readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), values.steps), "utf8")))
 		: undefined;
 	const next = planNext(versions, source, values.name, explicit);
-	const outputs = buildArtifacts(next ? [...versions, next] : versions, source);
-	if (next?.explicit)
-		writeFileSync(join(root, `versions/${next.id}.steps.json`), `${JSON.stringify(next.explicit, null, 2)}\n`);
-	if (next) writeFileSync(join(root, `versions/${next.id}.sql`), next.sql);
-	for (const [path, sql] of outputs) writeFileSync(join(root, path), sql);
+	const planned = next ? [...versions, next] : versions;
+	checkVersionFiles(planned);
+	const outputs = buildArtifacts(planned, source);
+	if (next) appendVersion(next);
+	for (const [path, sql] of outputs) write(path, sql);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

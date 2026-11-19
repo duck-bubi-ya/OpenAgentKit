@@ -53,9 +53,11 @@ CREATE TABLE IF NOT EXISTS kit_audit (
 );
 
 -- 002_session_files
+-- 会话创建时挂载的附件（file_id/mount_path）。只是「挂载映射」索引，不含文件内容。
 ALTER TABLE kit_sessions ADD COLUMN files_json TEXT;
 
 -- 003_quota_plaza
+-- 广场分类/精选 + Credits 用量配额与提额审批（纯增量；用量只存 turn 账本，不存事件正文）。
 ALTER TABLE catalog_agents ADD COLUMN category TEXT NOT NULL DEFAULT 'general';
 ALTER TABLE catalog_agents ADD COLUMN featured INTEGER NOT NULL DEFAULT 0;
 CREATE TABLE IF NOT EXISTS quota_policy (
@@ -142,6 +144,7 @@ CREATE TABLE kit_uploaded_files (
 CREATE INDEX idx_uploaded_files_subject ON kit_uploaded_files(subject_id);
 
 -- 006_legacy_file_ownership
+-- 兼容已应用 005 的数据库；只迁移能由历史挂载索引确定唯一 subject 的文件。
 WITH legacy_attachments AS (
   SELECT s.subject_id, s.created_at,
     CASE WHEN f.type = 'object' THEN json_extract(f.value, '$.file_id') END AS file_id,
@@ -160,6 +163,7 @@ GROUP BY file_id
 HAVING COUNT(DISTINCT subject_id) = 1;
 
 -- 007_admin_debug_scope
+-- 调试会话没有 Catalog slug；用途域与主体共同决定访问权限，历史数据保持 experience。
 CREATE TABLE kit_sessions_scoped (
   session_id TEXT PRIMARY KEY,
   subject_id TEXT NOT NULL,
@@ -251,6 +255,7 @@ CREATE TABLE kit_usage_limit_requests (
 CREATE INDEX idx_usage_limit_requests_member ON kit_usage_limit_requests(member_id, status);
 
 -- 010_catalog_environment
+-- 历史条目不覆盖 Agent 默认环境；只影响此后创建的体验会话。
 ALTER TABLE catalog_agents ADD COLUMN remote_environment_id TEXT;
 
 -- 011_catalog_files
@@ -341,12 +346,15 @@ CREATE TABLE kit_usage_limit_agent_months (
 );
 
 -- 020_usage_limit_days
+-- 广场「每日用量」的逐日增量账；与成员月账同事务双写，归因到采集确认日。
 CREATE TABLE kit_usage_limit_days (
   member_id TEXT NOT NULL, day TEXT NOT NULL, tokens INTEGER NOT NULL DEFAULT 0,
   active_seconds REAL NOT NULL DEFAULT 0, PRIMARY KEY (member_id, day)
 );
 
 -- 021_usage_limit_days_backfill
+-- 启用逐日账前已采集的历史基线没有逐日归属；一次性按最后采集日入账，
+-- 基线之后的增量仍由 observe 逐日追加，不与回填重复。
 INSERT INTO kit_usage_limit_days (member_id, day, tokens, active_seconds)
 SELECT member_id, substr(captured_at, 1, 10) AS day,
        CAST(SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)) AS INTEGER) AS tokens,
@@ -357,12 +365,14 @@ GROUP BY member_id, substr(captured_at, 1, 10)
 ON CONFLICT(member_id, day) DO UPDATE SET tokens = excluded.tokens, active_seconds = excluded.active_seconds;
 
 -- 022_usage_limit_days_rebuild
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/022_usage_limit_days_rebuild.ts。
 
 -- 023_catalog_agent_version_binding
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/023_catalog_agent_version_binding.ts。
 
 -- 024_template_default_environment
+-- 模版调试可沿用 Agent 默认环境；保持原来的用途、来源和归属约束。
+-- 对已按旧 id 应用过的 main 线库会重复重建一次：INSERT SELECT 原样搬行，无副作用。
 CREATE TABLE kit_sessions_optional_environment (
   session_id TEXT PRIMARY KEY, subject_id TEXT NOT NULL,
   purpose TEXT NOT NULL DEFAULT 'experience' CHECK (purpose IN ('experience', 'admin_debug')),
@@ -401,15 +411,17 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_resource_drafts_active_owner ON kit_resour
   WHERE status != 'published' OR cleanup_pending = 1;
 
 -- 026_resource_draft_cleanup_ownership
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/026_resource_draft_cleanup_ownership.ts。
 
 -- 027_usage_limit_daily
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/027_usage_limit_daily.ts。
 
 -- 023_catalog_listed_at
+-- 旧条目的创建/更新时间不能证明上架时间，保留 NULL，等待下次实际上架时记录。
 ALTER TABLE catalog_agents ADD COLUMN listed_at TEXT;
 
 -- 023_session_message_files
+-- 随消息运行时挂载的附件 ↔ 发送响应 event_ids 关联；provider 不回显，刷新后的气泡附件展示靠它。
 ALTER TABLE kit_sessions ADD COLUMN message_files_json TEXT;
 
 -- 028_preset_packs
@@ -431,16 +443,17 @@ CREATE TABLE kit_resource_draft_documents (
 );
 
 -- 030_resource_draft_assets
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/030_resource_draft_assets.ts。
 
 -- 031_retire_directory_drafts
--- 由 sqlite-history.ts 中的 TypeScript 步骤执行。
+-- TypeScript 步骤见 schema/history/031_retire_directory_drafts.ts。
 
 -- 032_publication_result_contract
 ALTER TABLE kit_operations ADD COLUMN publication_json TEXT;
 ALTER TABLE kit_operations ADD COLUMN error_details_json TEXT;
 
 -- 029_branding
+-- 员工端品牌由管理端维护；单行表保证读取稳定，首次启动种入默认产品名。
 CREATE TABLE IF NOT EXISTS kit_branding (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   product_name TEXT NOT NULL,
@@ -451,6 +464,7 @@ CREATE TABLE IF NOT EXISTS kit_branding (
 INSERT OR IGNORE INTO kit_branding (id, product_name, updated_at) VALUES (1, 'OpenAgentPack Kit', '2026-11-13T00:00:00.000Z');
 
 -- 030_branding_logo
+-- 上传的 Logo 存二进制与 contentType，公开读取走 /api/branding/logo；与外部 URL 二选一。
 CREATE TABLE IF NOT EXISTS kit_branding_logo (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   content_type TEXT NOT NULL,

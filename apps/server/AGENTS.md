@@ -49,7 +49,8 @@
     新增 op、Schema 或路由时同步登记和生成，不手改生成物。
 13. 数据库驱动归 `src/store/`，由 `server-database-drivers-in-store` 检查。业务 Store 共用
     异步读写和事务接口，跨 Store 事务须共用连接。三库共用结构定义和迁移顺序，各库分别记账。
-    已交付的迁移保留原 ID、内容和顺序，新变更追加版本。
+    [迁移清单](src/store/schema/manifest.json) 决定完整顺序。已交付的迁移保留原 ID、内容和顺序，
+    新变更由生成命令追加到清单。
 
 ## 修改步骤
 
@@ -62,7 +63,7 @@
    live 结果不能由 Mock 代替。
 6. 改表先编辑 [共享表结构](src/store/schema/definition.sql)。改名、改类型、删除和回填按同一
    版本补充显式步骤。以成员表新增备注为例，从仓库根目录运行下列命令。审核并提交共享定义、
-   版本快照和三库生成物。
+   更新后的迁移清单、版本快照和三库生成物。
 
    ```bash
    pnpm --filter @openagentpack/kit-server db:generate --name add_member_remark
