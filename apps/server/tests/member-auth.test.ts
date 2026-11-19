@@ -274,6 +274,42 @@ describe("本地成员认证", () => {
 		}
 	});
 
+	it("鉴权等待期间授权被取消时丢弃待发送帧", async () => {
+		const { app, services } = await makeApp();
+		await seedMember(app);
+		const signedIn = await login(app);
+		const sessionId = await createSession(app, signedIn.access_token);
+		const grant = new AbortController();
+		let finishCheck!: () => void;
+		const pendingCheck = new Promise<void>((resolve) => {
+			finishCheck = resolve;
+		});
+		const assertActive = vi.fn(() => pendingCheck);
+		vi.spyOn(services.memberAuth, "bindStream").mockResolvedValue({
+			signal: grant.signal,
+			assertActive,
+			close: vi.fn(),
+		});
+		const response = await app.request(`/api/kit/sessions/${sessionId}/stream`, {
+			headers: headers(signedIn.access_token),
+		});
+		expect(response.status).toBe(200);
+		const reader = response.body?.getReader();
+		if (!reader) throw new Error("SSE reader missing");
+		try {
+			const ended = readUntil(reader);
+			await vi.waitFor(() => expect(assertActive).toHaveBeenCalledOnce());
+			grant.abort();
+			finishCheck();
+			const text = await ended;
+			expect(text.match(/^event: .+$/gm)).toEqual(["event: error"]);
+			expect(text).toContain('"code":"unauthorized"');
+		} finally {
+			finishCheck();
+			await reader.cancel();
+		}
+	});
+
 	it("已开 SSE 在登录到期后主动关闭，过期凭据无法恢复登录", async () => {
 		const { app, db } = await makeApp();
 		await seedMember(app);

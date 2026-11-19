@@ -128,6 +128,29 @@ it("SQLite 在已有成员上应用生成的变更，失败时回滚 DDL 和版�
 	}
 });
 
+it("SQLite 升级保留额外的非唯一索引并继续校验已登记索引和唯一约束", () => {
+	const db = new DatabaseSync(":memory:");
+	try {
+		migrateSqliteSchema(db);
+		db.exec(`CREATE INDEX local_members_name ON kit_members (display_name);
+			CREATE INDEX local_members_lower_name ON kit_members (lower(display_name));`);
+		const upgraded = withUpgrades(sqliteProgram, "sqlite");
+		migrateSqliteSchema(db, upgraded);
+		migrateSqliteSchema(db, upgraded);
+		const indexes = db.prepare("SELECT name FROM pragma_index_list('kit_members')").all();
+		expect(indexes.map(({ name }) => name)).toEqual(
+			expect.arrayContaining(["local_members_name", "local_members_lower_name", "idx_members_remark"]),
+		);
+
+		db.exec("CREATE UNIQUE INDEX local_members_unique_name ON kit_members (display_name)");
+		expect(() => migrateSqliteSchema(db, upgraded)).toThrow(/kit_members.*indexes/);
+		db.exec("DROP INDEX local_members_unique_name; DROP INDEX idx_members_remark;");
+		expect(() => migrateSqliteSchema(db, upgraded)).toThrow(/kit_members.*indexes/);
+	} finally {
+		db.close();
+	}
+});
+
 async function openExternal(dialect: ExternalDialect, url: string) {
 	const config = loadConfig({
 		KIT_DB_DRIVER: dialect,

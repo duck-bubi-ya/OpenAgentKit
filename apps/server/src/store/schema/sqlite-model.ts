@@ -62,12 +62,13 @@ function readColumns(db: DatabaseSync, name: string, terms: string[]) {
 	return { columns, primary };
 }
 
-function readIndexes(db: DatabaseSync, name: string) {
+function readIndexes(db: DatabaseSync, name: string, managedIndexes?: ReadonlySet<string>) {
 	const unique: string[][] = [];
 	const indexes: Index[] = [];
 	const rows = db.prepare("SELECT * FROM pragma_index_list(?)").all(name) as unknown as IndexRow[];
 	for (const index of rows) {
 		if (index.origin === "pk") continue;
+		if (managedIndexes && !index.unique && !managedIndexes.has(index.name)) continue;
 		const columns = db
 			.prepare("SELECT name FROM pragma_index_info(?) ORDER BY seqno")
 			.all(index.name)
@@ -104,7 +105,7 @@ function readReferences(db: DatabaseSync, name: string): ForeignKey[] {
 	return [...groups.values()];
 }
 
-export function readSqliteTable(db: DatabaseSync, name: string): Table | null {
+export function readSqliteTable(db: DatabaseSync, name: string, managedIndexes?: ReadonlySet<string>): Table | null {
 	const entry = db.prepare("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = ?").get(name);
 	if (!entry) return null;
 	const sql = String(entry.sql);
@@ -115,7 +116,7 @@ export function readSqliteTable(db: DatabaseSync, name: string): Table | null {
 	return {
 		name,
 		...readColumns(db, name, terms),
-		...readIndexes(db, name),
+		...readIndexes(db, name, managedIndexes),
 		foreignKeys: readReferences(db, name),
 		checks,
 	};

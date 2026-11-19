@@ -16,6 +16,7 @@
 登录 / 恢复 / 退出的 HTTP 合同见 `docs/interfaces.md`。退出或令牌到期后，已建立的成员
 SSE 发出 `error`（`code: unauthorized`、`retryable: false`）并关闭；客户端清理该身份的
 状态并重新登录，不按断流恢复重连。仅关闭订阅不会向 Provider 发送 interrupt。
+如果订阅在单帧异步鉴权期间被取消，服务端丢弃该帧。
 客户端暂停读取造成背压时，服务端最多等待 250ms 写出认证错误，之后强制释放连接与
 上游订阅；不能以保证错误帧送达为由无限保留已撤销的连接。
 
@@ -333,6 +334,7 @@ Build、源码版本、Restore 和目录锁执行链路已经退役（ADR-0018�
 自然 EOF/45 秒静默超时重连观察流（500ms 起、最大 15 秒、8 次、±20%），不重发写请求。
 迟到的初始 GET 不能覆盖较新 SSE。服务重启后 pending/running 标为 failed/interrupted，
 提示远端结果待核对，不自动重跑。
+阶段和日志写入失败时，服务端仍尝试保存执行结果和终态。
 
 发布 Operation 额外提供可选 `publication` 与 `error_details`，HTTP GET 与 SSE 使用同一快照合同；
 旧记录缺字段时仍按原 `status/result/error` 读取，不推断历史执行结果。

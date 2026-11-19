@@ -2,6 +2,31 @@ import { setDefaultFetch } from "@openagentpack/sdk";
 import { expect, it, vi } from "vitest";
 import { fixture } from "./helpers/yaml-draft.ts";
 
+it("发布进度写入失败后仍保存发布结果并完成批次", async () => {
+	const t = await fixture();
+	const draft = await t.create();
+	await t.agent(draft);
+	const store = t.services.operations;
+	const update = store.update.bind(store);
+	let failedProgressWrites = 0;
+	vi.spyOn(store, "update").mockImplementation(async (id, patch) => {
+		if (patch.progress === 0.1 && patch.phase === "executing") {
+			failedProgressWrites++;
+			throw new Error("injected progress write failure");
+		}
+		return update(id, patch);
+	});
+
+	const operation = await t.wait((await t.publish(draft, await t.plan(draft))).operation_id);
+	expect(failedProgressWrites).toBe(1);
+	expect(operation).toMatchObject({ status: "succeeded", publication: { outcome: "succeeded" } });
+	expect(await t.value(`/api/admin/resource-drafts/${draft.draft_id}`)).toMatchObject({
+		status: "published",
+		resources: [{ type: "agent" }],
+		cleanup_pending: false,
+	});
+});
+
 it("Vault 已创建但凭据失败时持久保留已知 ID，不将未完成资源写成完整 State 或允许重发", async () => {
 	const calls: string[] = [];
 	setDefaultFetch(async (input, init) => {

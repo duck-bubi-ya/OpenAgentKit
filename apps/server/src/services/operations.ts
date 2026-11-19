@@ -29,11 +29,12 @@ export function createOperationRunner(store: OperationStore) {
 			}
 			let feedback = Promise.resolve();
 			function queue(patch: Parameters<OperationStore["update"]>[1]) {
-				feedback = feedback.then(async () => {
+				const update = feedback.then(async () => {
 					await store.update(operationId, patch);
 				});
-				void feedback.catch(() => undefined);
-				return feedback;
+				// 进度或日志写入失败后继续处理队列，发布结果的调用方仍能收到本次写入的结果。
+				feedback = update.catch(() => undefined);
+				return update;
 			}
 			const logger: OperationLogger = {
 				publication: (report) => queue({ publication: report }),
@@ -51,7 +52,7 @@ export function createOperationRunner(store: OperationStore) {
 					await feedback;
 					await store.update(operationId, { status: "succeeded", phase: "done", progress: 1, result });
 				} catch (error) {
-					await feedback.catch(() => undefined);
+					await feedback;
 					await store.update(operationId, {
 						status: "failed",
 						phase: "error",

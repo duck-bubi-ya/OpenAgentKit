@@ -1,7 +1,7 @@
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { program } from "./schema/generated/sqlite.ts";
-import { type Migration, type MigrationProgram, type Step, tableDifference } from "./schema/model.ts";
+import { type Migration, type MigrationProgram, type Step, type Table, tableDifference } from "./schema/model.ts";
 import { readSqliteTable } from "./schema/sqlite-model.ts";
 import { sqliteHistory } from "./sqlite-history.ts";
 
@@ -29,19 +29,25 @@ function applyVersion(db: DatabaseSync, id: string, apply: () => void, rebuild =
 	}
 }
 
+function sqliteTableDifference(db: DatabaseSync, name: string, expected: Table | null, other?: Table | null) {
+	// 检查迁移前后声明的索引，允许存量库保留额外的非唯一索引。
+	const indexes = new Set([expected, other].flatMap((table) => table?.indexes.map((index) => index.name) ?? []));
+	return tableDifference(expected, readSqliteTable(db, name, indexes));
+}
+
 function applyStep(db: DatabaseSync, id: string, step: Step) {
 	if ("data" in step) {
 		for (const sql of step.data) db.exec(sql);
 		return;
 	}
 	if (!("sql" in step)) throw new Error(`SQLite 迁移包含未识别的数据转换：${id}`);
-	for (const { name, before } of step.changes) {
-		const difference = tableDifference(before, readSqliteTable(db, name));
+	for (const { name, before, after } of step.changes) {
+		const difference = sqliteTableDifference(db, name, before, after);
 		if (difference) throw new Error(`SQLite 迁移 ${id}：${name} 的 ${difference} 与迁移前结构不符`);
 	}
 	db.exec(step.sql);
-	for (const { name, after } of step.changes) {
-		const difference = tableDifference(after, readSqliteTable(db, name));
+	for (const { name, before, after } of step.changes) {
+		const difference = sqliteTableDifference(db, name, after, before);
 		if (difference) throw new Error(`SQLite 迁移 ${id}：${name} 的 ${difference} 与迁移后结构不符`);
 	}
 }
@@ -86,7 +92,7 @@ export function migrateSqliteSchema(db: DatabaseSync, selected: MigrationProgram
 	}
 	applyNewVersions(db, selected.upgrades, applied);
 	for (const expected of selected.current) {
-		const difference = tableDifference(expected, readSqliteTable(db, expected.name));
+		const difference = sqliteTableDifference(db, expected.name, expected);
 		if (difference) throw new Error(`SQLite 当前数据库：${expected.name} 的 ${difference} 与预期结构不符`);
 	}
 }

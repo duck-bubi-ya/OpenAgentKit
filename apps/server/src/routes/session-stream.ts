@@ -44,6 +44,7 @@ async function forwardFrames(
 	for await (const frame of frames) {
 		if (signal.aborted) break;
 		await grant.assertActive();
+		if (signal.aborted) break;
 		await stream.write(encodeFrame(frame));
 		if (frame.type === "done") break;
 	}
