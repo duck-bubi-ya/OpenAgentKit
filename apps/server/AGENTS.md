@@ -62,13 +62,15 @@
 5. 改流或恢复时同步协议，覆盖静默断流、历史/实时交叉、游标续传或未知结果路径；
    live 结果不能由 Mock 代替。
 6. 改表先编辑 [共享表结构](src/store/schema/definition.sql)。改名、改类型、删除和回填按同一
-   版本补充显式步骤。以成员表新增备注为例，从仓库根目录运行下列命令。审核并提交共享定义、
-   更新后的迁移清单、版本快照和三库生成物。
+   版本补充显式步骤。以成员表新增备注为例，从仓库根目录运行下列命令。审核生成的三库迁移，
+   提交共享定义、更新后的迁移清单、版本快照和显式步骤。
 
    ```bash
    pnpm --filter @openagentpack/kit-server db:generate --name add_member_remark
    pnpm --filter @openagentpack/kit-server db:check
    ```
+
+   服务端各开发和构建入口先运行 `db:render`，按已登记的版本写入 Git 忽略的 `schema/generated/`。
 
 ## 验收
 

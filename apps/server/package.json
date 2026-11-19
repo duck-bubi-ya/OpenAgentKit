@@ -30,14 +30,15 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "tsup",
-    "dev": "tsx watch --env-file-if-exists=../../.env src/bin.ts",
+    "build": "pnpm db:render && tsup",
+    "dev": "pnpm db:render && tsx watch --env-file-if-exists=../../.env src/bin.ts",
     "start": "node --env-file-if-exists=../../.env dist/bin.js",
-    "typecheck": "tsc --noEmit",
-    "test": "pnpm db:check && vitest run",
+    "typecheck": "pnpm db:render && tsc --noEmit",
+    "test": "pnpm db:render && vitest run",
     "db:generate": "node --import tsx src/store/schema/generate.ts",
     "db:check": "node --import tsx src/store/schema/generate.ts --check",
-    "gen:openapi": "tsx src/openapi.ts",
+    "db:render": "node --import tsx src/store/schema/generate.ts --render",
+    "gen:openapi": "pnpm db:render && tsx src/openapi.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {

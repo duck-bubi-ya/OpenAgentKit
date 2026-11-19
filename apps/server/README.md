@@ -97,9 +97,13 @@ pnpm --filter @openagentpack/kit-server db:generate --name add_member_remark
 pnpm --filter @openagentpack/kit-server db:check
 ```
 
-检查生成的三库迁移 SQL 和最新结构快照，将共享定义、更新后的迁移清单、版本快照和生成物一并提交。开发时需要
-主动运行生成命令。构建产物中的 `dist/schema/` 提供三库 SQL 和结构快照供查阅。部署后，服务
-启动会自动执行所选库尚未应用的版本，并登记执行结果。
+开发时主动运行 `db:generate` 登记版本并查看三库 SQL。提交共享定义、更新后的迁移清单、
+版本快照和显式步骤。`db:check` 校验这些来源及其可生成的迁移。
+
+`schema/generated/` 是本地生成目录。构建、开发启动、类型检查、测试和 OpenAPI 生成都会先按已登记的
+版本渲染产物。也可以单独运行 `pnpm --filter @openagentpack/kit-server db:render` 查看 SQL。
+构建后的 `dist/schema/` 提供三库迁移 SQL 和结构快照。部署启动时，服务自动执行所选库待处理的
+迁移，并登记结果。
 
 新增表、可空列、带常量默认值的非空列和普通索引可由工具生成。
 改名、改类型、删除或回填旧数据时，给生成命令追加 `--steps <JSON 路径>`。JSON 的 `steps` 按顺序列出步骤。
