@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -224,39 +224,42 @@ function planNext(versions: Version[], source: string, name: string, explicit?: 
 	return { id, sql: source, ...(explicit ? { explicit } : {}) };
 }
 
-function checkOutputs(outputs: Map<string, string>) {
+function writeOutputs(outputs: Map<string, string>) {
+	mkdirSync(join(root, "generated"), { recursive: true });
 	for (const [path, sql] of outputs) {
-		if (!existsSync(join(root, path)) || read(path) !== sql) throw new Error(`生成物待更新：${path}`);
+		if (!existsSync(join(root, path)) || read(path) !== sql) write(path, sql);
 	}
 }
 
 function run() {
-	const { values } = parseArgs({
+	const {
+		values: { check, render, name, steps },
+	} = parseArgs({
 		options: {
 			check: { type: "boolean" },
+			render: { type: "boolean" },
 			name: { type: "string" },
 			steps: { type: "string" },
 		},
 	});
+	if (check && render) throw new Error("--check 和 --render 只能选择一个");
+	if ((check || render) && (name !== undefined || steps !== undefined))
+		throw new Error("--check 和 --render 不接收变更参数");
+	if (!check && !render && !name) throw new Error("请提供 --name <变更名>");
+
 	verifyHistory();
 	const source = read(definitionPath);
 	const versions = readVersions();
-	if (values.check) {
-		if (values.name || values.steps) throw new Error("--check 不接收变更参数");
-		checkVersionFiles(versions);
-		checkOutputs(buildArtifacts(versions, source));
-		return;
-	}
-	if (!values.name) throw new Error("请提供 --name <变更名>");
-	const explicit = values.steps
-		? parseExplicit(JSON.parse(readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), values.steps), "utf8")))
+	const explicit = steps
+		? parseExplicit(JSON.parse(readFileSync(resolve(process.env.INIT_CWD ?? process.cwd(), steps), "utf8")))
 		: undefined;
-	const next = planNext(versions, source, values.name, explicit);
+	const next = name ? planNext(versions, source, name, explicit) : undefined;
 	const planned = next ? [...versions, next] : versions;
 	checkVersionFiles(planned);
 	const outputs = buildArtifacts(planned, source);
+	if (check) return;
 	if (next) appendVersion(next);
-	for (const [path, sql] of outputs) write(path, sql);
+	writeOutputs(outputs);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
