@@ -228,7 +228,7 @@ function historyThrough(program: MigrationProgram, last: string): MigrationProgr
 			}
 		}
 	}
-	return { ...program, history, current: [...tables.values()] };
+	return { history, upgrades: [], current: [...tables.values()] };
 }
 
 async function seedHistoricalData(fixture: Awaited<ReturnType<typeof openExternal>>, program: MigrationProgram) {
