@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>终态到了再把聊天存进表 · 技术调研</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Noto+Sans+SC:wght@400;500;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f7f4ec; --bg-2: #fffdf8; --bg-3: #ebe6d8;
+      --line: #ddd6c8; --line-strong: #c4bba8;
+      --ink: #2a261f; --ink-dim: #5a544a; --ink-mute: #7a7368;
+      --copper: #b44a24; --ok: #3d6b3a; --warn: #9a6b1a; --fail: #b5453a;
+      --mono: "IBM Plex Mono", ui-monospace, monospace;
+      --sans: "Noto Sans SC", "PingFang SC", sans-serif;
+      --serif: "Newsreader", "Noto Serif SC", "Songti SC", serif;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; color-scheme: light; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 16px; line-height: 1.75; }
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 40; opacity: 0.035;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+    #progress { position: fixed; top: 0; left: 0; height: 2px; width: 0; background: var(--copper); z-index: 50; }
+    .rail { position: fixed; top: 0; left: 0; width: 220px; height: 100vh; padding: 36px 22px; border-right: 1px solid var(--line); background: var(--bg-2); z-index: 20; display: flex; flex-direction: column; gap: 28px; }
+    .rail-mark { font-family: var(--mono); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--copper); }
+    .rail nav { display: flex; flex-direction: column; gap: 2px; }
+    .rail a { color: var(--ink-mute); text-decoration: none; font-size: 12px; padding: 7px 0 7px 10px; border-left: 1px solid transparent; }
+    .rail a.active, .rail a:hover { color: var(--ink); border-left-color: var(--copper); padding-left: 14px; }
+    .rail-foot { margin-top: auto; font-family: var(--mono); font-size: 10px; color: var(--ink-mute); line-height: 1.6; }
+    main { margin-left: 220px; position: relative; z-index: 2; max-width: calc(100vw - 220px); overflow-x: clip; }
+    .cover { min-height: 100vh; padding: 72px 64px; display: grid; grid-template-columns: minmax(280px, 1.15fr) minmax(280px, 0.85fr); gap: 48px; align-items: center; border-bottom: 1px solid var(--line); position: relative; overflow: hidden; }
+    .cover-grid { position: absolute; inset: 0; background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px); background-size: 72px 72px; mask-image: linear-gradient(180deg, transparent, #000 28%, #000 72%, transparent); opacity: 0.45; }
+    .cover-copy, .cover-overview { position: relative; z-index: 1; }
+    .cover-overview { padding: 8px 0 8px 36px; border-left: 1px solid var(--line); }
+    .kicker, .sec-index { font-family: var(--mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper); margin-bottom: 14px; }
+    .cover h1 { font-family: var(--serif); font-weight: 400; font-size: clamp(40px, 4.6vw, 64px); line-height: 1.08; margin: 0 0 24px; max-width: 100%; }
+    .cover h1 em { font-style: italic; color: var(--ink-dim); }
+    .cover-lead, .cover-note { max-width: 46em; color: var(--ink-dim); font-size: 18px; }
+    .cover-list { list-style: none; padding: 0; margin: 18px 0; color: var(--ink-dim); font-size: 18px; }
+    .cover-list li { display: grid; grid-template-columns: 2.4em 1fr; gap: 8px; margin: 0 0 8px; }
+    .cover-list b { font-family: var(--mono); font-weight: 500; color: var(--copper); }
+    section { padding: 80px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+    h2 { font-family: var(--serif); font-weight: 400; font-size: 40px; margin: 0 0 16px; letter-spacing: -0.02em; }
+    h3 { font-family: var(--serif); font-weight: 400; font-size: 26px; margin: 40px 0 10px; }
+    p { max-width: 72ch; color: var(--ink-dim); }
+    strong { color: var(--ink); font-weight: 500; }
+    a { color: var(--copper); }
+    code { font-family: var(--mono); font-size: 0.86em; }
+    table { width: 100%; min-width: 640px; border-collapse: collapse; margin-top: 16px; font-size: 14px; }
+    th, td { text-align: left; padding: 13px 12px 13px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-mute); font-weight: 500; }
+    td { color: var(--ink-dim); }
+    td:first-child { color: var(--ink); }
+    .verdict { margin-top: 28px; padding: 24px 0; border-top: 1px solid var(--line-strong); border-bottom: 1px solid var(--line-strong); }
+    .verdict p { font-family: var(--serif); font-size: 26px; line-height: 1.45; color: var(--ink); max-width: 34em; margin: 0; }
+    .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--line); margin-top: 28px; }
+    .cards article { background: var(--bg); padding: 22px 18px; min-height: 150px; }
+    .cards .k { font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--copper); }
+    .cards h3 { margin: 8px 0; font-size: 22px; }
+    .cards p { margin: 0; font-size: 14px; }
+    .note { margin-top: 22px; padding: 16px 18px; border-left: 2px solid var(--warn); background: var(--bg-2); color: var(--ink-dim); max-width: 76ch; }
+    .note strong { color: var(--warn); }
+    .note.ok { border-left-color: var(--ok); }
+    .note.ok strong { color: var(--ok); }
+    .note.no { border-left-color: var(--fail); }
+    .note.no strong { color: var(--fail); }
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 24px; }
+    .steps div { background: var(--bg-2); border: 1px solid var(--line); padding: 16px; min-width: 0; }
+    .steps b { display: block; font-family: var(--mono); color: var(--copper); font-size: 12px; font-weight: 500; margin-bottom: 8px; }
+    .steps p { margin: 0; font-size: 14px; }
+    .diagram { margin: 28px 0 8px; display: flex; flex-direction: column; align-items: center; gap: 0; }
+    .diagram .node, .diagram .store { width: min(100%, 640px); border: 1.5px solid var(--ink); background: var(--bg-2); }
+    .diagram .node { padding: 14px 18px; text-align: center; }
+    .diagram .node b { display: block; font-weight: 500; color: var(--ink); }
+    .diagram .node span, .diagram .store li span { color: var(--ink-mute); font-family: var(--mono); font-size: 12px; }
+    .diagram .arrow { width: 1.5px; height: 28px; background: var(--ink); position: relative; }
+    .diagram .arrow::after { content: ""; position: absolute; left: -4px; bottom: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 7px solid var(--ink); }
+    .diagram .split { width: min(100%, 640px); display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .schema { width: min(100%, 920px); margin-top: 8px; border: 1px solid var(--ink); background: var(--bg-2); text-align: left; overflow-x: auto; }
+    .diagram .schema { margin-top: 0; }
+    .schema caption { caption-side: top; display: table-caption; margin: 0; text-align: left; padding: 12px 14px; background: var(--ink); color: var(--bg); font-family: var(--mono); font-size: 14px; font-weight: 500; }
+    .schema table { min-width: 880px; margin: 0; font-size: 13px; }
+    .schema th, .schema td { padding: 8px 12px; }
+    .schema td.col { font-family: var(--mono); font-size: 12px; white-space: nowrap; color: var(--ink); }
+    .schema td.type, .schema td.yn { font-family: var(--mono); font-size: 12px; white-space: nowrap; color: var(--ink-dim); }
+    .key { display: inline-block; font-family: var(--mono); font-size: 10px; line-height: 1.4; letter-spacing: 0.04em; padding: 0 5px; border: 1px solid var(--line-strong); color: var(--ink-dim); }
+    .key.pri { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+    .key.uni { color: var(--copper); border-color: #e0b2ac; }
+    .schema td.note { color: var(--ink-dim); min-width: 220px; }
+    .sheet { margin-top: 28px; }
+    .sheet header { display: flex; align-items: baseline; gap: 12px; border-bottom: 1px solid var(--line-strong); padding-bottom: 8px; }
+    .sheet header span { font-family: var(--mono); color: var(--copper); font-size: 12px; }
+    .sheet h3 { margin: 0; font-size: 24px; }
+    .badge { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; padding: 2px 7px; border: 1px solid var(--line-strong); white-space: nowrap; }
+    .badge.ok { color: var(--ok); border-color: #b8c4a8; }
+    .badge.warn { color: var(--warn); border-color: #d8c49a; }
+    .badge.no { color: var(--fail); border-color: #e0b2ac; }
+    pre { margin: 16px 0 0; padding: 18px; background: var(--bg-2); border: 1px solid var(--line); overflow: auto; white-space: pre-wrap; font-family: var(--mono); font-size: 12px; line-height: 1.6; color: var(--ink-dim); }
+    footer.colophon { padding: 40px 80px 64px; color: var(--ink-mute); font-size: 13px; }
+    footer.colophon p { color: var(--ink-mute); }
+    @media (max-width: 980px) {
+      .rail { display: none; }
+      main { margin-left: 0; max-width: 100vw; }
+      .cover, section, footer.colophon { padding: 40px 22px; }
+      .cover, .cards, .steps { grid-template-columns: 1fr; }
+      .cover-overview { border-left: 0; border-top: 1px solid var(--line); padding: 24px 0 0; }
+      h2 { font-size: 32px; }
+    }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <div id="progress"></div>
+  <aside class="rail">
+    <div class="rail-mark">Kit Server<br />消息落库</div>
+    <nav>
+      <a href="#verdict">结论</a>
+      <a href="#apis">三个接口各自给什么</a>
+      <a href="#shape">主流程</a>
+      <a href="#scheduler">任务调度</a>
+      <a href="#table">两张表</a>
+      <a href="#edges">边界怎么处理</a>
+      <a href="#impact">会影响哪里</a>
+      <a href="#open">还要先定的事</a>
+    </nav>
+    <div class="rail-foot">2026-11-19<br />方案评审稿<br />服务端已按此实现</div>
+  </aside>
+  <main>
+    <header class="cover">
+      <div class="cover-grid"></div>
+      <div class="cover-copy">
+        <div class="kicker">OpenAgentPack-Kit · 消息副本</div>
+        <h1>终态到了再存<br /><em>两个状态，同一次写入</em></h1>
+        <p class="cover-lead"><code>session.status_idled</code> 和 <code>session.status_terminated</code> 都表示会话进入终态。这时才把会话正文写入本地表。通知里没有正文，服务器再调用列出事件的接口去取。</p>
+        <ol class="cover-list">
+          <li><b>01</b>通知必须在几秒内回复，不能边拉边写</li>
+          <li><b>02</b>同一条消息后来会变，所以要更新，不能只插入一次</li>
+          <li><b>03</b>单条正文过大就不写这一行，任务标失败，不切短</li>
+          <li><b>04</b>正在回复、工具审批，仍然看云上，不看这张表</li>
+        </ol>
+        <p class="cover-note">依据是百炼 Webhook 契约、列出 Event 的接口，以及当前 Kit 的发送和打开链路。这是方案说明，不是已经做完的功能。</p>
+      </div>
+      <div class="cover-overview">
+        <div class="sec-index">判定</div>
+        <h2>方向可用，写入要拆开</h2>
+        <p>落库只认这两个终态，动作相同。运行中不写。把 <code>GET /sessions/{session_id}/events</code> 的结果直接在回调请求里插入，会在大会话上超时、把数据库锁住。</p>
+        <div class="note ok"><strong>建议形态。</strong>回调只验签、记下要拉哪个会话，立刻返回成功。后台再一页一页拉消息，按消息 id 更新。太大的一行不写，任务标失败。</div>
+      </div>
+    </header>
+
+    <section id="verdict">
+      <div class="sec-index">01 — 结论</div>
+      <h2>这张表只存终态副本</h2>
+      <div class="verdict">
+        <p>用户还在看模型打字时，页面继续走现在的实时流。表里的内容在会话进入终态之后写入。它用来留底、重启后回看，不用来决定能不能发消息、能不能点允许。</p>
+      </div>
+      <div class="cards">
+        <article>
+          <div class="k">现在</div>
+          <h3>打开就向云上要</h3>
+          <p>聊天正文在内存里。人走了就丢。本地 <code>kit_sessions</code> 只有封面、状态和文件编号。</p>
+        </article>
+        <article>
+          <div class="k">加上之后</div>
+          <h3>终态到了再写</h3>
+          <p>收到 <code>status_idled</code> 或 <code>status_terminated</code>，拉已完成的事件，按消息编号写下或覆盖。两个事件做同一件事。</p>
+        </article>
+        <article>
+          <div class="k">运行中</div>
+          <h3>实时流继续看云上</h3>
+          <p>模型正在输出时，这次回复还不在表里。页面继续读实时流。工具审批也看云上。</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="apis">
+      <div class="sec-index">02 — 接口</div>
+      <h2>三个接口各自给什么</h2>
+      <p>方案用到百炼文档里的三块。它们的分工要先分开，否则容易把「通知」当成「正文」。</p>
+      <table>
+        <thead><tr><th>接口</th><th>实际拿到的东西</th><th>在这个方案里的角色</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><a href="https://docs.bailian.console.aliyun.com/zh/model-studio/webhook-callback">Webhook 回调</a></td>
+            <td>一个很小的信封：事件编号、时间、资源编号、事件类型。会话类通知的 <code>data.id</code> 是会话编号。没有用户说的话，也没有模型回复。</td>
+            <td>门铃。告诉 Kit「这个会话进入终态了」。</td>
+          </tr>
+          <tr>
+            <td><a href="https://docs.bailian.console.aliyun.com/zh/model-studio/webhook-api">Webhook 管理</a></td>
+            <td>创建、查询、启停、测试、重置签名密钥。密钥只在创建和重置时出现一次。每个工作空间最多 20 个端点。</td>
+            <td>服务启动时创建端点。密钥只写入数据目录，不进仓库，也不进消息表。</td>
+          </tr>
+          <tr>
+            <td><a href="https://docs.bailian.console.aliyun.com/zh/model-studio/event-list">GET /sessions/{session_id}/events</a></td>
+            <td>已经说完的消息列表。每页最多 100 条，用 <code>next_page</code> 翻下一页。接口不返回一共多少条。字段包括消息编号、角色、类型、内容、时间。</td>
+            <td>真正的正文来源。终态到达之后由后台去拉，不是回调请求自己去拉。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>文档里的限制要直接写进设计。</strong>
+        回调要在 5 秒内返回。返回 200 到 299 才算成功，平台不再重试。同一条通知可能投递多次，外层编号不变。顺序不保证。事件记录只留 7 天。私网地址不能当回调。这些都决定了不能在回调函数里翻完一个大会话再插入。
+      </div>
+      <h3>什么时候才存</h3>
+      <p>百炼没有「来了一条聊天消息」这种通知。写入只认会话结束：<code>session.status_idled</code> 和 <code>session.status_terminated</code>。两个名字是同一件事，都表示这一轮已经跑完。收到哪一个，都给这个会话排一条任务，分页把已经说完的消息按 id 写入或更新。后到的终态可以再盖一次，不会把上次写下的内容冻住。</p>
+      <p>用户之后又发消息，会话会重新运行。再次进入这两个终态之一时，再写一次。运行过程中不写。</p>
+      <table>
+        <thead><tr><th>事件</th><th>收到后做什么</th></tr></thead>
+        <tbody>
+          <tr><td><code>session.status_idled</code></td><td>终态。把这个会话放进同步队列，写入正文。</td></tr>
+          <tr><td><code>session.status_terminated</code></td><td>终态。和上面同一件事，同一条队列，同一种写入。</td></tr>
+          <tr><td><code>session.thread_idled</code>、<code>session.thread_terminated</code></td><td>子线程自己的终态。并进同一个会话的队列。和主会话终态短时间连着到，合并成一次拉取。</td></tr>
+          <tr><td><code>session.deleted</code>、<code>session.archived</code></td><td>验签后回复 200，不入队。清消息走 Kit 自己的删除事务，不另做清理任务。</td></tr>
+          <tr><td>其他 20 多种资源事件</td><td>验签后直接回复成功，不入库。智能体、环境、密钥库的变更和聊天正文无关。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="shape">
+      <div class="sec-index">03 — 主流程</div>
+      <h2>回调只入队，调度器再写正文</h2>
+      <figure class="diagram" aria-label="两张新表和执行流程">
+        <div class="node"><b>1 终态通知</b><span>status_idled · status_terminated · 线程终态并入同一队列</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>2 验签后入队</b><span>一个 webhook_id 一条任务 · 立刻 200 · 正文不进任务表</span></div>
+        <div class="arrow"></div>
+        <div class="schema">
+          <table>
+            <caption>kit_session_message_jobs</caption>
+            <thead><tr><th>字段</th><th>类型</th><th>空</th><th>键</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="col">job_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key pri">PRI</span></td><td class="note">这条任务自己的号，我们生成。</td></tr>
+              <tr><td class="col">webhook_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key uni">UNI</span></td><td class="note">百炼这次通知的号。同一个号再来，不再插一行。</td></tr>
+              <tr><td class="col">session_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key">MUL</span></td><td class="note">去拉哪一个会话的消息。</td></tr>
+              <tr><td class="col">trigger_type</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">哪一种结束通知：会话空闲、会话停止，或某个线程结束。</td></tr>
+              <tr><td class="col">status</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key">MUL</span></td><td class="note">排队、正在拉、拉完、失败、跳过，或挂到另一条任务上。</td></tr>
+              <tr><td class="col">attempts</td><td class="type">INTEGER</td><td class="yn">否</td><td></td><td class="note">这条任务已经去拉了几次。最多 4 次。</td></tr>
+              <tr><td class="col">available_at</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">到这个时间才能开始拉。失败后会往后延。</td></tr>
+              <tr><td class="col">lease_until</td><td class="type">TEXT</td><td class="yn">是</td><td></td><td class="note">正在拉，占到这个时间。进程挂了，过点后可以重新领。</td></tr>
+              <tr><td class="col">generation</td><td class="type">INTEGER</td><td class="yn">否</td><td></td><td class="note">这个会话第几次拉。旧的那次发现有更新的，就不再删本地消息。</td></tr>
+              <tr><td class="col">merged_into_job_id</td><td class="type">TEXT</td><td class="yn">是</td><td></td><td class="note">这个会话已经有一条还没开始的任务，这一行挂到那一条上。</td></tr>
+              <tr><td class="col">page_token</td><td class="type">TEXT</td><td class="yn">是</td><td></td><td class="note">下一页从哪继续。接口不返回一共多少条，所以不记「写到第几条」。</td></tr>
+              <tr><td class="col">pages_written</td><td class="type">INTEGER</td><td class="yn">否</td><td></td><td class="note">这次已经写进消息表的页数。一页最多 100 条。</td></tr>
+              <tr><td class="col">stored_bytes</td><td class="type">INTEGER</td><td class="yn">否</td><td></td><td class="note">这次写下的消息一共多少字节。</td></tr>
+              <tr><td class="col">error_code</td><td class="type">TEXT</td><td class="yn">是</td><td></td><td class="note">失败或跳过的原因。成功就空着。</td></tr>
+              <tr><td class="col">created_at</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">这条任务插进来的时间。</td></tr>
+              <tr><td class="col">updated_at</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">状态最后一次改动的时间。</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="arrow"></div>
+        <div class="node"><b>3 调度器领取一条</b><span>同一会话只跑一个 · 全局同时一个</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>4 分页 GET events</b><span>一页最多 100 条 · 没有 total · 按消息 id 更新</span></div>
+        <div class="arrow"></div>
+        <div class="schema">
+          <table>
+            <caption>kit_session_messages</caption>
+            <thead><tr><th>字段</th><th>类型</th><th>空</th><th>键</th><th>说明</th></tr></thead>
+            <tbody>
+              <tr><td class="col">session_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key pri">PRI</span></td><td class="note">这条消息属于哪个会话。</td></tr>
+              <tr><td class="col">event_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key pri">PRI</span></td><td class="note">云上这条消息的 id。同一个 id 再来，更新这一行。</td></tr>
+              <tr><td class="col">object</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">云上的 object。查历史时都是 message。</td></tr>
+              <tr><td class="col">status</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">云上的 status。查历史时都是 completed，表示这句已经说完。</td></tr>
+              <tr><td class="col">role</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">谁说的：user 用户，assistant 助手，tool 工具。</td></tr>
+              <tr><td class="col">type</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">这条消息在云上的类型。</td></tr>
+              <tr><td class="col">created_at</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key">MUL</span></td><td class="note">这句消息在云上的创建时间。</td></tr>
+              <tr><td class="col">is_error</td><td class="type">INTEGER</td><td class="yn">是</td><td></td><td class="note">工具结果有没有报错。用户和助手的消息一般空着。</td></tr>
+              <tr><td class="col">content_json</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">聊天正文，整段存下来。太大的这一行不写。</td></tr>
+              <tr><td class="col">metadata_json</td><td class="type">TEXT</td><td class="yn">是</td><td></td><td class="note">附在消息上的额外信息，例如线程号、工具调用号。没有就空着。</td></tr>
+              <tr><td class="col">subject_id</td><td class="type">TEXT</td><td class="yn">否</td><td><span class="key">MUL</span></td><td class="note">谁的会话。和 kit_sessions 用同一个用户编号。</td></tr>
+              <tr><td class="col">purpose</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">体验页还是管理端调试。和 kit_sessions 里的一样。</td></tr>
+              <tr><td class="col">stored_bytes</td><td class="type">INTEGER</td><td class="yn">否</td><td></td><td class="note">这一条正文占多少字节。</td></tr>
+              <tr><td class="col">last_job_id</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">哪条任务写下了这一行。</td></tr>
+              <tr><td class="col">synced_at</td><td class="type">TEXT</td><td class="yn">否</td><td></td><td class="note">这一行最后一次被写下的时间。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </figure>
+      <div class="note ok">
+        <strong>评审先看这三句。</strong>
+        一个 <code>webhook_id</code> 对应一条任务，同一个号再来不再插入。任务里不放聊天正文，只记要拉的会话、任务状态，以及拉到哪一页。当前版本全局同时只跑一条，先到的先领；同一个会话已经有一条还没开始的任务时，新通知挂到那一条上，只拉一次。
+      </div>
+      <p>任务表就是队列，前面不再放一个单独的队列。Webhook 把终态任务写进 <code>kit_session_message_jobs</code>，马上回复百炼。调度器领到任务后，分页调用 <code>GET /sessions/{session_id}/events</code>，按消息 id 写入 <code>kit_session_messages</code>。每一页写完再要下一页。全部页都成功，并且这个会话没有更新的任务插进来，才删掉这次列表里已经没有的本地旧行。中途失败或单条过大，已写下的页留下，旧行先不删。删除会话时清消息，走现有删除事务，不进这个队列。</p>
+      <table>
+        <thead><tr><th>步骤</th><th>谁做</th><th>做什么</th><th>动哪张表</th></tr></thead>
+        <tbody>
+          <tr><td>1</td><td>回调</td><td>读原始 body，用数据目录里保存的 Signing Secret 验签。时间差超过 5 分钟，或签名不对，直接拒绝，不建任务。</td><td>不写</td></tr>
+          <tr><td>2</td><td>回调</td><td>解析信封。不是上面的终态，回复 200，到此结束。删除和归档也不入队。</td><td>不写</td></tr>
+          <tr><td>3</td><td>回调</td><td>按 <code>webhook-id</code> 插入一条任务。这个编号已存在，说明是同一次投递的重试，回复 200，不新增工作。</td><td>jobs</td></tr>
+          <tr><td>4</td><td>回调</td><td>同一会话如果已经有一条还没开始的同步任务，新任务标成合并，挂到那一条上。不排第二次全文拉取。</td><td>jobs</td></tr>
+          <tr><td>5</td><td>回调</td><td>任务行提交成功就返回 200，并叫醒调度器。任务写不进去才返回 500，让百炼按 10 秒、30 秒、1 分钟重试。</td><td>jobs</td></tr>
+          <tr><td>6</td><td>调度器</td><td>领一条到期的任务。同一会话已有任务在跑，就先领别的会话；没有别的，就等。</td><td>jobs</td></tr>
+          <tr><td>7</td><td>调度器</td><td>对照 <code>kit_sessions</code> 和删除进度。不是 Kit 的会话，或删除还没定论，任务标跳过，不建消息行。</td><td>jobs</td></tr>
+          <tr><td>8</td><td>调度器</td><td>分页 GET。一页最多 100 条，接口不返回总数。按消息 id 插入或更新，提交后再要下一页。<code>page_token</code> 记下一页，<code>pages_written</code> 记已经写了几页。</td><td>messages</td></tr>
+          <tr><td>9</td><td>调度器</td><td>页全部成功，且没有更新的任务插队，任务标 <code>succeeded</code>，并删掉云上这份列表里已经不存在的本地行。失败或超限则任务标 <code>failed</code>，已写的页保留。</td><td>jobs、messages</td></tr>
+        </tbody>
+      </table>
+      <h3>同一条消息要覆盖</h3>
+      <p>列出事件的接口给出的是完成后的消息。同一次运行里，工具调用和工具结果可能分属前后两次终态。后一次 <code>status_idled</code> 或 <code>status_terminated</code> 到达时，必须用同一个消息编号盖掉旧行。只插入、冲突就跳过，会把半成品永远留在库里。</p>
+    </section>
+
+    <section id="scheduler">
+      <div class="sec-index">04 — 调度器</div>
+      <h2>一个循环，一次一个会话</h2>
+      <p>调度器跑在现有 Kit 服务进程里，和 Hono 一起启动、一起停。默认关闭：管理端还没保存回调地址，或还没取得签名密钥时，循环不启动。回调地址仍登记在接口里，请求得到 404。任务表就是队列。不使用 cron，不另起进程，也不扫 <code>kit_sessions</code> 找该同步谁。</p>
+      <div class="cards">
+        <article>
+          <div class="k">1 回调</div>
+          <h3>只负责入队</h3>
+          <p>验签，往任务表插一行，叫醒循环，立刻 200。这一步不拉消息，不写消息表。</p>
+        </article>
+        <article>
+          <div class="k">2 循环</div>
+          <h3>决定何时动手</h3>
+          <p>被叫醒或每隔约 2 秒看一次任务表。全局同时只跑一条。正在跑时再来通知，只记一个标记，当前这一页写完再看。</p>
+        </article>
+        <article>
+          <div class="k">3 执行</div>
+          <h3>拉一页，写一页</h3>
+          <p>领到任务后分页调用列出事件。云上那一页先放在内存里，短事务写入消息表，再要下一页。写库的时候不去等云上。</p>
+        </article>
+      </div>
+      <h3>放在现有进程的哪里</h3>
+      <figure class="diagram" aria-label="调度器在 Kit 进程中的位置">
+        <div class="node"><b>百炼 POST 回调</b><span>签名在头里，正文不在包里</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>回调路由</b><span>不走成员登录 · 靠签名 · 写入任务表后 wake</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>调度循环</b><span>createKitServices 里创建 · bin.ts 监听之后 start · 关闭时先 stop 再关库</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>执行这一条</b><span>领取 → 对照 kit_sessions → 拉一页 → 写下这一页 → 还有下一页就继续</span></div>
+        <div class="arrow"></div>
+        <div class="node"><b>kit_session_messages</b><span>按消息 id 更新 · 全部页成功后才删这次列表里没有的旧行</span></div>
+      </figure>
+      <table>
+        <thead><tr><th>块</th><th>建议放在</th><th>这一块做</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>回调路由</td>
+            <td><code>apps/server/src/routes/webhooks.ts</code>，在 <code>app.ts</code> 里挂上，并加入公开路径</td>
+            <td>读原始 body 验签。终态才插任务。路径建议 <code>POST /api/kit/webhooks/bailian</code>。现有中间件会向其他 <code>/api</code> 要成员身份，这个地址必须公开，否则百炼进不来。</td>
+          </tr>
+          <tr>
+            <td>调度循环</td>
+            <td><code>apps/server/src/schedulers/session-message-scheduler/</code></td>
+            <td>类 <code>SessionMessageScheduler</code>，对外只有 <code>start</code>、<code>stop</code>、<code>wake</code>。启动时调用构造时传入的回收，之后一次只跑一条。领取和写入由传入的函数完成，不在这个目录里写 SQL。测试里创建应用时不调用 <code>start</code>。</td>
+          </tr>
+          <tr>
+            <td>执行一条</td>
+            <td>同一个 service 里的函数，不另开文件进程</td>
+            <td>分页拉取、按消息 id 写入、记 <code>page_token</code> 和 <code>pages_written</code>、收场。一条任务跨很多页时状态保持 <code>running</code>，每页提交一次。</td>
+          </tr>
+          <tr>
+            <td>两张表</td>
+            <td><code>store/session-message-jobs.ts</code>、<code>store/session-messages.ts</code></td>
+            <td>领取、合并、翻页、写入都走 store。路由和循环不直接拼 SQL。</td>
+          </tr>
+          <tr>
+            <td>拉云上消息</td>
+            <td>现有 gateway 旁边加一个「转换前」的读取</td>
+            <td>现在的 <code>gateway.listEvents</code> 会先把云上消息收成 Kit 的 <code>SessionEvent</code>，<code>object</code> 和 <code>status</code> 会丢掉。落库要的是列出接口返回的那一项，所以在 <code>toContractEvent</code> 之前把 <code>data[]</code> 交出来。发送和 stream 继续用现在的转换。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>和现有两套东西分开。</strong>
+        <code>kit_operations</code> 是人工确认后的高风险操作，这条链路不往那里插任务。实时流的内存缓冲继续只服务打开对话，调度器不往那个缓冲里写。
+      </div>
+      <h3>一条任务在循环里怎么走</h3>
+      <pre>醒：wake，或约 2 秒到了，或进程刚启动
+若上一次执行还没结束：只记下「还要再看」，不并行开第二条
+领取：一个事务里把一条 queued 改成 running，写 lease_until
+对照目录：不是 Kit 的会话，或删除还没定论 → skipped，本轮结束
+拉一页：HTTP 在事务外面。一页最多 100 条，接口不返回 total
+写一页：短事务按消息 id 插入或更新，记下 page_token、pages_written
+还有下一页：继续拉，状态仍是 running
+没有下一页，且没有更新的任务：succeeded，并删掉这次列表里没有的本地旧行
+失败或超限：已写的页留下，旧行先不删</pre>
+      <p>进程在两页之间死掉时，任务还是 <code>running</code>。下次启动看到 <code>lease_until</code> 已过，改回 <code>queued</code>，有 <code>page_token</code> 就从那一页继续。第一版只有一个进程，不用多台机器抢同一行。</p>
+      <h3>什么时候醒</h3>
+      <table>
+        <thead><tr><th>时机</th><th>做什么</th></tr></thead>
+        <tbody>
+          <tr><td>回调刚写入任务</td><td>进程内打一个信号，循环马上看一眼队列。不等下一个时钟。</td></tr>
+          <tr><td>固定短间隔</td><td>建议 2 秒看一次。用来捡重试到期的任务，以及上次进程崩溃后租约过期的任务。2 秒是建议值，不是百炼的要求。</td></tr>
+          <tr><td>进程启动</td><td>把 <code>running</code> 且 <code>lease_until</code> 已过的任务改回 <code>queued</code>。有 <code>page_token</code> 的从那一页继续，没有的从头拉。覆盖写入可以重做已写过的页。</td></tr>
+        </tbody>
+      </table>
+      <h3>怎么领任务</h3>
+      <p>在一次数据库事务里完成领取，避免同一次循环领走同一条：</p>
+      <pre>选出一条 status = queued、available_at 已到的任务
+条件：这个 session_id 没有另一条 status = running
+排序：created_at 升序，先到先领
+改成 status = running
+lease_until = 现在 + 2 分钟
+generation = 该会话已有任务的最大 generation + 1</pre>
+      <p>当前版本全局同时只领 1 条，按插入时间先到先领。SQLite 是单写入，拉取时还会占着云上接口。同一个会话不会有两条任务一起写。以后若要并行，也只能是不同会话同时拉，并且要单独看云上的限流。第一版不并行。</p>
+      <h3>同一个会话的任务怎么并</h3>
+      <table>
+        <thead><tr><th>当时队列里有什么</th><th>新的终态通知到达</th></tr></thead>
+        <tbody>
+          <tr><td>这个 <code>webhook_id</code> 已经有行</td><td>不插入。这是同一次投递的重试。</td></tr>
+          <tr><td>已有一条 <code>queued</code> 的同步任务</td><td>新行写成 <code>merged</code>，<code>merged_into_job_id</code> 指向那条还没开始的任务。那条任务改记最新的通知编号和事件类型。全文只拉一次。</td></tr>
+          <tr><td>已有一条 <code>running</code></td><td>新行保持 <code>queued</code>。正在跑的任务写完时如果同会话已有更大的 generation，不删「自己没看到」的消息。循环接着领这条新任务，再拉一遍。</td></tr>
+          <tr><td>上一次已经 <code>succeeded</code></td><td>这是新的终态，新建 <code>queued</code>。再写一遍，按消息编号覆盖。</td></tr>
+        </tbody>
+      </table>
+      <h3>任务跑完怎么收场</h3>
+      <table>
+        <thead><tr><th>结果</th><th>任务状态</th><th>消息表</th><th>要不要再跑</th></tr></thead>
+        <tbody>
+          <tr><td>每一页都写完，且没有更新的任务</td><td><code>succeeded</code></td><td>覆盖写入，并删掉这次列表里没有的旧行</td><td>不再跑，直到下一次终态</td></tr>
+          <tr><td>云上 5xx、超时、连接失败，次数未到</td><td>改回 <code>queued</code>，<code>available_at</code> 推后</td><td>已写的页保留</td><td>建议最多 4 次，间隔 10 秒、30 秒、1 分钟</td></tr>
+          <tr><td>次数用完，或单会话超过 8MB</td><td><code>failed</code></td><td>已写的页保留，不删旧行</td><td>不再自动跑。下一次终态会新建任务</td></tr>
+          <tr><td>会话不属于 Kit，或删除进行中</td><td><code>skipped</code></td><td>不改</td><td>不跑</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>租约只防进程崩溃。</strong>
+        任务开始时写 <code>lease_until</code>。正常做完会自己改状态。进程中途死掉，启动时只回收过期租约。第一版只有一个进程，不需要多台机器抢同一行。
+      </div>
+      <p>调度器不进入发送消息、打开 stream、工具审批。那三条链路继续直接访问云上。任务失败只影响本地副本是否完整，不影响用户能不能接着聊。</p>
+    </section>
+
+    <section id="table">
+      <div class="sec-index">05 — 表</div>
+      <h2>新建两张表</h2>
+      <p>任务表回答「还要不要拉、拉到哪一页、这次拉完没有」。一行是一次通知，里面是 <code>webhook_id</code>、<code>session_id</code>、任务状态和翻页位置，不放聊天正文。正文表回答「这句消息是什么」。一个会话有多少条、一共多少字节，从正文表按 <code>session_id</code> 汇总。不另建进度表。两张表都不改 <code>kit_sessions</code> 的列。</p>
+      <table>
+        <thead><tr><th>表</th><th>一行是什么</th><th>谁写</th></tr></thead>
+        <tbody>
+          <tr><td><code>kit_session_message_jobs</code></td><td>一次通知对应的一条任务。只记拉哪个会话、状态、拉到哪一页</td><td>回调插入，调度器更新状态</td></tr>
+          <tr><td><code>kit_session_messages</code></td><td>一条已完成的消息</td><td>只有调度器</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>进度表不建。</strong>
+        正在跑看有没有 <code>status = running</code> 的任务。这次拉完没有看该任务是 <code>succeeded</code> 还是 <code>failed</code>。消息条数和会话总字节从 <code>kit_session_messages</code> 汇总。
+      </div>
+      <div class="note no">
+        <strong>不存的东西。</strong>
+        Webhook 信封原文、签名密钥、会话 GET 的 <code>attributes</code>、请求头、文件字节。<code>next_page</code> 和 <code>request_id</code> 属于整页，翻页位置在任务表。密钥放在数据目录，不进这两张表。
+      </div>
+    </section>
+
+    <section id="edges">
+      <div class="sec-index">06 — 边界</div>
+      <h2>这些情况要事先定规则</h2>
+
+      <h3>正文很大</h3>
+      <p>这是最需要先定的。一条工具输出、一份贴进来的长文，都可能比普通聊天大几个数量级。SQLite 是一个文件、同一时间适合一个写入。一条几兆的插入会卡住成员、限额、会话目录这些本来很快的写入。</p>
+      <table>
+        <thead><tr><th>层级</th><th>建议</th><th>超过之后</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>单条消息</td>
+            <td>单条 <code>content</code> 加 <code>metadata</code> 超过 256KB 时，这一行不写入。256KB 是保护线，不是接口限制。</td>
+            <td>任务标 <code>failed</code>。这一行不写。云上仍有原文。</td>
+          </tr>
+          <tr>
+            <td>单个会话</td>
+            <td>已存正文合计不超过 8MB。</td>
+            <td>停止再写这个会话的新行，任务标 <code>failed</code>。已经原样写好的留下。聊天仍走云上。</td>
+          </tr>
+          <tr>
+            <td>一次拉取</td>
+            <td>一页写一次，写完释放内存。不要先把所有页拼成一个大数组。</td>
+            <td>页数或总时间超过预算，任务标 <code>failed</code>，下一次终态再从已成功的页之后继续。游标重复则停止并记错误，避免死循环。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>回写的一行必须是完整消息。超限就停，不改 <code>content</code>。用户正在看的实时回复不经过这张表。</p>
+
+      <h3>同一声门铃响了好几次</h3>
+      <p>百炼明确说同一事件可能投递多次，外层 <code>id</code> 不变。<code>kit_session_message_jobs.webhook_id</code> 是唯一键。第一次已经排队或跑完，后来的请求验签后直接 200。</p>
+      <p>这和「会话再次进入终态」不同。新的终态会带来新的通知编号，必须再同步。去重的是同一声门铃，不是这个会话永远只抄一次。</p>
+
+      <h3>通知乱序</h3>
+      <p>后发生的终态可能先到。<code>status_idled</code> 和 <code>status_terminated</code> 不保证谁先谁后，处理办法相同：同一个会话的同步串行，新任务把 <code>generation</code> 加一。旧任务结束时发现编号已经变了，就退出，不把状态改成完整。拉取本身拿的是「现在云上有哪些已完成消息」，不是「门铃响起那一瞬间的快照」。所以晚到的旧门铃如果还去拉，拉到的也是更新后的列表。危险的是旧任务用一份旧列表去删除「它没看到的新消息」。规则是：只有同一次任务从第一页拉到最后一页都成功，才允许删掉本地有、云上这份列表里没有的消息。不完整的任务只覆盖自己写下的编号，不删除。</p>
+
+      <h3>等待工具审批</h3>
+      <p>还没收到 <code>session.status_idled</code> 或 <code>session.status_terminated</code> 时，不写这张表。审批按钮仍然看云上当前待办。若平台在等待批准时已经投递了其中一个终态，这次写入的是当时已经完成的消息。用户点允许或拒绝之后，会话会再跑一遍，再次进入终态时用同一个消息编号覆盖。</p>
+
+      <h3>不是 Kit 建的会话</h3>
+      <p>一个工作空间的 Webhook 会收到这个空间里所有会话，包括控制台或其他系统建的。Kit 只处理 <code>kit_sessions</code> 里有的编号。没有的直接跳过，不新建目录，也不建消息行。否则会把别人的对话写进这个库，还不知道属于哪个用户。</p>
+
+      <h3>删除会话</h3>
+      <p>成员删除会话时，现有流程会先封存用量，再删 <code>kit_sessions</code>。消息行放在同一次提交里删掉。这不是调度任务。</p>
+      <p>若回写已经在拉，写之前再查一次目录。行已经不在，或删除还没定论，就放弃这次写入。云上的 <code>session.deleted</code>、<code>session.archived</code> 只回复 200，不入队，也不把会话重新插回 <code>kit_sessions</code>。</p>
+
+      <h3>回调地址和密钥</h3>
+      <p>百炼要求回调是它能访问的公网地址，私网和本机地址不行。本地 <code>pnpm dev</code> 默认没有这个地址，所以这个能力必须默认关闭。管理员在管理端「配置」页填写部署这台服务的公网 IP 加端口，或映射到该服务的域名。回调地址只在这一页维护。</p>
+      <p>验签要用创建时那一次给出的 Signing Secret。服务首次启动时创建 Webhook，把密钥写入数据目录，同一回调地址之后直接复用。之后再查 Webhook 不会带回密钥。日志、错误、审计详情都不能出现密钥和消息正文。</p>
+
+      <h3>服务器重启或开了多份</h3>
+      <p>现在的设计是一台服务器配一个 SQLite 文件。任务表因为在库里，重启后可以接着跑。如果同一套库后面挂了多台服务器，两台可能同时收到门铃、同时写。在改成共享队列之前，只允许一台处理回调。这和现有「先不要水平扩容」是同一条限制。</p>
+
+      <h3>列出接口和实时流不是同一种形状</h3>
+      <p>打开对话时，实时流里同一条消息会从「正在写」变成「写完了」。列出接口的文档写的是历史消息，状态为已完成。所以这张表在终态到达后存写完的结果，不录制打字过程。实施时要用一条真实会话对一下：终态之后列出的消息编号，是否和页面上最终看到的编号一致，工具结果在不在。对不上就先不要让页面读这张表。</p>
+    </section>
+
+    <section id="impact">
+      <div class="sec-index">07 — 影响</div>
+      <h2>先做写入，打开对话的路径先不动</h2>
+      <p>如果这一期只在终态到达后写入，用户看到的聊天不会变快，也不会变。变的是磁盘上多了一份终态正文，以及服务器多了一个公网入口。</p>
+      <table>
+        <thead><tr><th>现有位置</th><th>这一期</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>apps/server/src/routes/kit.ts</code> 的发送和 stream</td>
+            <td>不改。发送仍是 <code>POST /api/kit/sessions/{id}/messages</code>，再转到云上 <code>POST /sessions/{id}/events</code>。回复仍从 stream 来。</td>
+          </tr>
+          <tr>
+            <td><code>apps/server/src/services/session-streams.ts</code></td>
+            <td>不改。打开对话仍向云上要历史。等副本被证明和云上一致之后，才单独讨论终态副本能不能先读本地。</td>
+          </tr>
+          <tr>
+            <td><code>apps/server/src/store/sessions.ts</code></td>
+            <td>不把正文塞进 <code>kit_sessions</code>。目录表继续只放封面。新表用会话编号去对目录。</td>
+          </tr>
+          <tr>
+            <td><code>apps/server/src/services/session-deletion.ts</code> 和 <code>store/session-usage.ts</code></td>
+            <td>删目录行时一起删消息行。用量数字仍留在用量表。</td>
+          </tr>
+          <tr>
+            <td>新建回调路由、进程内调度器、两张表的迁移</td>
+            <td>这是这一期的代码。默认关闭。</td>
+          </tr>
+          <tr>
+            <td>体验页 <code>apps/web</code></td>
+            <td>这一期可以没有界面变化。页面还不读这张表。</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>和现有规矩的关系。</strong>
+        现在写明聊天正文不进本地库，云上是这份内容的原件。这张表是有意加的副本，默认关闭，不参与发送和审批。要做的话，得把这条例外写进设计说明，不能当成普通加表。
+      </div>
+      <h3>做完能得到什么，还得不到什么</h3>
+      <table>
+        <thead><tr><th></th><th>结果</th></tr></thead>
+        <tbody>
+          <tr><td><span class="badge ok">能</span></td><td>会话进入 <code>status_idled</code> 或 <code>status_terminated</code> 之后，本地有一份可查询的消息副本。服务器重启也不会丢这份额外副本。企业可以在自己的机器上备份这个库。</td></tr>
+          <tr><td><span class="badge warn">部分</span></td><td>单条超过保护线的消息这一行不写，任务标失败。单个会话超过保护线就停写新行，已经写好的留下。等待审批时如果已经收到终态，这次写下的是当时已经说完的消息，用户点完之后，下一次终态再按消息 id 更新。</td></tr>
+          <tr><td><span class="badge no">不能</span></td><td>不能靠这张表看正在打的字。不能在百炼宕机时继续发消息。不能把副本当成审批依据。本地开发如果没有公网地址，收不到门铃，表会一直是空的。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="open">
+      <div class="sec-index">08 — 还要定</div>
+      <h2>评审时需要拍板的几件事</h2>
+      <table>
+        <thead><tr><th>事项</th><th>建议</th><th>不拍板的后果</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>单条和单会话的大小上限</td>
+            <td>超限的处理已经定了：这一行不写，任务标失败，不切短。数字先用单条 256KB、单会话 8MB，做成配置。评审确认这两个数。</td>
+            <td>一条工具输出就能把库文件和备份变成消息仓库。</td>
+          </tr>
+          <tr>
+            <td>会话删了，正文删不删</td>
+            <td>和目录行一起删。用量数字继续保留。若企业要留底，那是另一条保留策略，不要和默认删除混在一张表的隐含行为里。</td>
+            <td>删除后库里还留着对话，和现在的删除预期不一致。</td>
+          </tr>
+          <tr>
+            <td>谁可以读这张表</td>
+            <td>这一期不给页面读。以后读，也只允许会话目录里的同一个 <code>subject_id</code>。</td>
+            <td>后台接口如果少一次归属检查，就会串读别人的正文。</td>
+          </tr>
+          <tr>
+            <td>每次终态是否总是从头拉</td>
+            <td>第一版按消息编号覆盖，完整成功后才删除云上已不存在的本地行。先不要用「只拉上次时间之后」省略旧消息，避免后一次终态补上的内容被漏掉。</td>
+            <td>长会话每次终态都从头拉，成本高。这是已知代价。等对过真实数据，再加「旧消息不再变化」的增量。</td>
+          </tr>
+          <tr>
+            <td>默认开不开</td>
+            <td>关。只配置了百炼能访问的公网回调地址才开，密钥由创建 Webhook 写入数据目录。</td>
+            <td>开源安装和本机开发会启动一个永远收不到通知的功能，或者把密钥写进仓库。</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>流程、两张表和「超限不切短」已经写进这篇方案。评审若没有改口，再按这个顺序开工：两张表和验签入队、进程内调度器、分页按消息 id 更新、大小上限、删除时一起清。页面改读本地正文单独做，并且要先拿一条真实会话对比云上的列出结果。</p>
+    </section>
+    <footer class="colophon">
+      <p>对照文档：<a href="https://docs.bailian.console.aliyun.com/zh/model-studio/webhook-api">Webhook</a>、<a href="https://docs.bailian.console.aliyun.com/zh/model-studio/webhook-callback">回调契约</a>、<a href="https://docs.bailian.console.aliyun.com/zh/model-studio/event-list">列出 Event</a>。Kit 侧对照的是当前发送、stream 和 <code>kit_sessions</code> 的实现。256KB 与 8MB 是建议保护线，不是实测出来的会话大小。</p>
+    </footer>
+  </main>
+  <script>
+    (() => {
+      const progress = document.getElementById("progress");
+      const links = [...document.querySelectorAll(".rail a")];
+      const sections = links.map((a) => document.querySelector(a.getAttribute("href"))).filter(Boolean);
+      const onScroll = () => {
+        const max = document.documentElement.scrollHeight - window.innerHeight;
+        if (progress) progress.style.width = max > 0 ? (window.scrollY / max) * 100 + "%" : "0%";
+        let current = sections[0];
+        for (const section of sections) if (section.getBoundingClientRect().top < 140) current = section;
+        if (!current) return;
+        links.forEach((a) => a.classList.toggle("active", a.getAttribute("href") === "#" + current.id));
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+    })();
+  </script>
+</body>
+</html>

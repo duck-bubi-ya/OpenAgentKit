@@ -13,6 +13,7 @@ const agentActions = [
 	"catalog.list",
 	"catalog.unlist",
 	"branding.update",
+	"webhook.update",
 ];
 const agentActionSet = new Set(agentActions);
 const agentActionFilter = `action IN (${agentActions.map(() => "?").join(", ")})`;

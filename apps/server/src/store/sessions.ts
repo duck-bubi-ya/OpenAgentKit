@@ -147,7 +147,7 @@ function targetColumns(input: CreateSessionIndexInput) {
 	];
 }
 
-/** 只存会话索引；两个身份域即使 subject 相同也不可互相读取。事件正文始终由 Provider 保存。 */
+/** 只存会话目录；两个身份域即使 subject 相同也不可互相读取。终态副本见 ADR-0028，打开对话仍读 Provider。 */
 export function createSessionIndex(db: StoreDatabase) {
 	const directory = createSessionDirectoryIndex(db);
 	async function getScoped(sessionId: string, purpose: SessionPurpose): Promise<Row | undefined> {

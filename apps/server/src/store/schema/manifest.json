@@ -147,5 +147,9 @@
     "id": "033_openagentkit_default_branding",
     "source": "version",
     "steps": true
+  },
+  {
+    "id": "034_session_message_store",
+    "source": "version"
   }
 ]

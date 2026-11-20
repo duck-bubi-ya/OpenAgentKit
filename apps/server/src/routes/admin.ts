@@ -33,6 +33,7 @@ import { requireAdmin, requireAdminWrite } from "../services/identity.ts";
 import { registerAgentVersionRoutes } from "./agent-versions.ts";
 import { registerAuditRoutes } from "./audit.ts";
 import { registerBrandingRoutes } from "./branding.ts";
+import { registerWebhookSettingsRoutes } from "./webhook-settings.ts";
 import { registerEnvironmentRoutes } from "./environments.ts";
 import { registerRemoteSkillRoutes } from "./remote-skills.ts";
 
@@ -76,6 +77,7 @@ export function registerAdminRoutes(app: OpenAPIHono<AppEnv>) {
 	registerAgentVersionRoutes(app);
 	registerAuditRoutes(app);
 	registerBrandingRoutes(app);
+	registerWebhookSettingsRoutes(app);
 	registerEnvironmentRoutes(app);
 	registerRemoteSkillRoutes(app);
 

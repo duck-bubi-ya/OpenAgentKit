@@ -61,6 +61,7 @@ node apps/server/dist/bin.js
 | `KIT_DB_DRIVER` | `sqlite` | 可选 `sqlite`、`mysql` 或 `postgres`（别名 `pg`） |
 | `KIT_DATABASE_URL` | 空 | 使用 MySQL 或 PostgreSQL 时填写所选数据库的连接地址 |
 | `KIT_CORS_ORIGINS` | 本地开发来源 | 跨域白名单，支持 `http://127.0.0.1:*` loopback 通配 |
+| `KIT_PUBLIC_BASE_URL` | 空 | 跨域部署时覆盖前端 `apiBaseUrl`，不是百炼回调地址 |
 | `KIT_EVAL_WORKSPACES` | 空 | 管理端评测浏览的 workspace 根目录，逗号分隔 |
 
 完整配置与限制参数见 `src/config.ts` 与根 `.env.example`。凭据不会下发浏览器，也不会写进日志。

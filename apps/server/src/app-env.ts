@@ -1,6 +1,7 @@
 import type { ServerConfig } from "./config.ts";
 import type { ProviderGateway } from "./gateway/types.ts";
 import type { Identity } from "./identity/types.ts";
+import type { SessionMessageScheduler } from "./schedulers/session-message-scheduler/index.ts";
 import type { ConfirmGate } from "./services/confirm-gate.ts";
 import type { DebugService } from "./services/debug.ts";
 import type { DraftResourceService } from "./services/draft-resources.ts";
@@ -17,6 +18,7 @@ import type { PresetPackService } from "./services/preset-packs.ts";
 import type { QuotaService } from "./services/quota.ts";
 import type { RateLimiter } from "./services/rate-limit.ts";
 import type { ResourceDraftService } from "./services/resource-drafts.ts";
+import type { SessionMessageSync } from "./services/session-message-sync.ts";
 import type { SessionService } from "./services/sessions.ts";
 import type { TemplateService } from "./services/templates.ts";
 import type { UsageLimitService } from "./services/usage-limits.ts";
@@ -37,6 +39,9 @@ export interface KitServices {
 	operations: OperationStore;
 	audit: AuditLog;
 	sessions: SessionService;
+	sessionMessageSync: SessionMessageSync;
+	/** 进程内调度器。拿到签名密钥后才 start，创建应用本身不会启动循环。 */
+	scheduler: SessionMessageScheduler;
 	quota: QuotaService;
 	usageLimits: UsageLimitService;
 	members: MemberService;

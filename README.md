@@ -258,7 +258,7 @@ Workspace ID 或 Base URL。管理员令牌只写入 `.env`，登录管理端时
 | `KIT_AUTH_MODE` | 否 | `member`（默认）或 `anonymous` |
 | `KIT_DATA_DIR` | 否 | 本地数据目录，默认 `.data` |
 | `KIT_CORS_ORIGINS` | 否 | 允许跨域的体验页来源 |
-| `KIT_PUBLIC_BASE_URL` | 否 | 跨域部署时的公开服务地址 |
+| `KIT_PUBLIC_BASE_URL` | 否 | 跨域部署时的公开服务地址，覆盖前端 `apiBaseUrl` |
 | `KIT_JWT_SECRET` | 否 | 可选的可信 JWT 身份扩展 |
 | `KIT_ADMIN_TOKENS` | 否 | 追加 `admin` / `auditor` 令牌，格式 `<token>:<role>` |
 

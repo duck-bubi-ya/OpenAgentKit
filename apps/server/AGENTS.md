@@ -8,6 +8,7 @@
 | 目录 | 职责 |
 | --- | --- |
 | `src/routes/` | Hono 路由、共享 Schema、OpenAPI 与 HTTP 边界 |
+| `src/schedulers/` | 进程内循环：何时启动、一次领一条、何时停止。不写 SQL，不访问 Provider |
 | `src/services/` | 身份、业务编排、计划确认、共享流、批次与恢复 |
 | `src/gateway/` | SDK / Mock 适配、Provider 分页、规范化与安全投影 |
 | `src/store/` | SQLite / MySQL / PostgreSQL 连接与迁移、目录/索引、数值快照和临时执行账本 |
@@ -22,7 +23,8 @@
    所有远端详情使用白名单投影及相应脱敏合同，不能整包透传 attributes/metadata。
 3. Provider 是事件与消息正文的事实源。Kit 数据库仅保存被允许的目录、身份哈希、
    归属/附件索引、用量数值、删除阶段、Operation、审计及 ADR-0017 的临时账本。
-   不能借缓存、审计或恢复名义持久化事件正文和凭据。
+   不能借缓存、审计或恢复名义持久化事件正文和凭据。ADR-0028 是例外：配置了公网地址和
+   签名密钥后，终态消息可以写入 `kit_session_messages`。实时对话仍读 Provider。
 4. 数据面按 `subjectId`，调试按 `subject + purpose` 校验归属；越权不泄露资源存在性。
    成员登录为默认模式，匿名必须显式配置；上传、挂载及下载同样校验归属。
 5. `auditor` 的写入拒绝由统一管理中间件强制。审计主体来自认证上下文，

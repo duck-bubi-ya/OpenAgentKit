@@ -54,6 +54,7 @@
 | `branding.logo` | `GET /api/branding/logo` | 公开读取管理端上传的 Logo 二进制；响应 Content-Type 为图片类型，CSP sandbox 隔离同源权限并禁止脚本及外部资源（允许 SVG 内联样式），设置 nosniff；hash 查询参数用于缓存破坏，长缓存 immutable；不存在返回 404；不参与身份与限流 | ✅ |
 | `auth.login` | `POST /api/kit/auth/login` | `{username,password}` → `{data:{access_token,token_type: Bearer,expires_at,member}}`；统一错误凭据 401，独立登录限流 429，禁止缓存 | ✅ |
 | `auth.logout` | `POST /api/kit/auth/logout` | 撤销当前本地成员 Bearer，幂等 204；令牌失效时也可退出，不接受管理员令牌代替成员身份 | ✅ |
+| `webhook.bailian` | `POST /api/kit/webhooks/bailian` | 百炼终态门铃。先验签再入队，立刻 200。`session.status_idled`、`session.status_terminated`、`session.thread_idled`、`session.thread_terminated` 入队；`session.deleted` 与 `session.archived` 只确认。管理端尚未登记对外入口，或尚未取得签名密钥时 404。密钥来自创建 Webhook 的响应并保存在数据目录。签名错误 401，信封损坏 400。不走成员登录 | ✅ |
 
 ## 成员认证
 
@@ -193,6 +194,9 @@ Plan/确认令牌绑定批次、主体、当前修订号与声明及上传内容
 | `admin.branding.get` | `GET /api/admin/branding` | 返回员工端品牌 `{productName, logoUrl?, updatedAt, updatedBy?}`；admin/auditor 可读 | ✅ |
 | `admin.branding.update` | `PUT /api/admin/branding` | 保存 `{productName, logoUrl?}`；名称 trim 后 1–60 字。`logoUrl` 为字符串时切换到本站路径/http(s) URL 并清除上传文件；为 `null` 时清除 Logo；省略时保持现有 Logo。auditor 禁写；保存后写入审计并立即反映到 `GET /api/config` | ✅ |
 | `admin.branding.logo` | `POST /api/admin/branding/logo` | multipart `file`；仅接受 PNG/JPEG/WebP/SVG，最大 512KB；存储二进制并清除外部 URL，返回 `BrandingView`，`logoUrl` 指向 `/api/branding/logo?v=<hash>`；auditor 禁写并写审计 | ✅ |
+| `admin.webhook.get` | `GET /api/admin/webhook` | 返回已登记的对外入口 `{publicUrl?, callbackUrl?, status, detail?, checkedAt?}`。`status` 为 `unconfigured`、`active` 或 `error`。不返回签名密钥。admin/auditor 可读 | ✅ |
+| `admin.webhook.update` | `PUT /api/admin/webhook` | 保存 `{publicUrl}`。地址必须是 http(s)，且不能是私网或本机。服务向百炼登记并测试连通，密钥只写入数据目录。没有百炼凭据时 409。auditor 禁写。成功后写 `webhook.update` 审计 | ✅ |
+| `admin.webhook.test` | `POST /api/admin/webhook/test` | 对已登记地址再测一次连通，结果写入 `status` 与 `detail`。尚未登记或没有百炼凭据时 409。auditor 禁写。不返回签名密钥 | ✅ |
 
 ### 管理员调试
 

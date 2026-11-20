@@ -10,8 +10,9 @@ import { Alert, Button, Input, Result, Segmented, Skeleton, Space, Typography, U
 import { useEffect, useState } from "react";
 import { useAdminMutation } from "../../lib/admin/use-admin-mutation.ts";
 import { useAdminQuery } from "../../lib/admin/use-admin-query.ts";
-import { adminApi, getAdminClient } from "../../lib/api.ts";
+import { adminApi, getAdminClient, type WebhookSettingsView } from "../../lib/api.ts";
 import { InnerLayout } from "../navigation/inner-layout.tsx";
+import { WebhookFields } from "./webhook-settings.tsx";
 
 type LogoMode = "upload" | "url";
 
@@ -104,8 +105,9 @@ function UploadLogoControl({
 	);
 }
 
-function useLogoEditor(initialUrl: string | undefined, onDirty: () => void) {
+function useLogoEditor(initialUrl: string | undefined) {
 	const [logoUrl, setLogoUrl] = useState(initialUrl ?? "");
+	const [baseline, setBaseline] = useState(initialUrl ?? "");
 	const [mode, setMode] = useState<LogoMode>("upload");
 	const [file, setFile] = useState<File | null>(null);
 	const [filePreviewUrl, setFilePreviewUrl] = useState<string>();
@@ -122,12 +124,17 @@ function useLogoEditor(initialUrl: string | undefined, onDirty: () => void) {
 		return () => URL.revokeObjectURL(url);
 	}, [file]);
 
+	const clearDraft = () => {
+		setMode("upload");
+		setFile(null);
+		setUploadError(undefined);
+		setRemoveLogo(false);
+	};
 	const changeMode = (next: LogoMode) => {
 		setMode(next);
 		setFile(null);
 		setUploadError(undefined);
 		setRemoveLogo(false);
-		onDirty();
 	};
 	const chooseFile = (next: File) => {
 		const error = fileError(next);
@@ -135,28 +142,24 @@ function useLogoEditor(initialUrl: string | undefined, onDirty: () => void) {
 		if (error) return;
 		setFile(next);
 		setRemoveLogo(false);
-		onDirty();
 	};
 	const changeUrl = (next: string) => {
 		setLogoUrl(next);
 		setRemoveLogo(false);
-		onDirty();
 	};
 	const remove = () => {
 		setFile(null);
 		setUploadError(undefined);
 		setRemoveLogo(true);
-		onDirty();
 	};
-	const reset = () => {
-		setLogoUrl(initialUrl ?? "");
-		setMode("upload");
-		setFile(null);
-		setUploadError(undefined);
-		setRemoveLogo(false);
-		onDirty();
+	const restore = (nextUrl?: string) => {
+		const value = nextUrl ?? baseline;
+		setBaseline(value);
+		setLogoUrl(value);
+		clearDraft();
 	};
 	const previewUrl = removeLogo ? undefined : (filePreviewUrl ?? (logoUrl.trim() || undefined));
+	const urlDirty = mode === "url" && logoUrl.trim() !== baseline;
 	return {
 		mode,
 		logoUrl,
@@ -164,13 +167,14 @@ function useLogoEditor(initialUrl: string | undefined, onDirty: () => void) {
 		uploadError,
 		removeLogo,
 		previewUrl,
+		dirty: Boolean(file || removeLogo || urlDirty),
 		hasLogo: Boolean((logoUrl || file) && !removeLogo),
 		urlError: mode === "url" ? logoError(logoUrl) : undefined,
 		changeMode,
 		changeUrl,
 		chooseFile,
 		remove,
-		reset,
+		restore,
 	};
 }
 
@@ -223,83 +227,252 @@ function LogoFields({ editor, disabled }: { editor: ReturnType<typeof useLogoEdi
 	);
 }
 
-function BrandingForm({
-	initial,
+function normalizeEndpoint(value: string) {
+	return value.trim().replace(/\/+$/, "");
+}
+
+function endpointError(value: string): string | undefined {
+	const trimmed = value.trim();
+	if (!trimmed) return "请填写端点 URL";
+	try {
+		const url = new URL(trimmed);
+		if (url.protocol !== "http:" && url.protocol !== "https:") return "请填写 http 或 https 地址";
+	} catch {
+		return "请填写 http 或 https 地址";
+	}
+	return undefined;
+}
+
+function errorText(error: unknown) {
+	return error instanceof Error ? error.message : "保存失败";
+}
+
+async function saveBrand(name: string, editor: ReturnType<typeof useLogoEditor>) {
+	if (editor.mode === "upload") {
+		if (editor.file) {
+			await adminApi.branding.uploadLogo(editor.file);
+			return adminApi.branding.update({ productName: name });
+		}
+		return adminApi.branding.update({ productName: name, ...(editor.removeLogo ? { logoUrl: null } : {}) });
+	}
+	return adminApi.branding.update({ productName: name, logoUrl: editor.logoUrl.trim() || null });
+}
+
+interface PersistResult<T> {
+	saved?: T;
+	note?: string;
+	error?: string;
+}
+
+async function persistBrand(
+	name: string,
+	editor: ReturnType<typeof useLogoEditor>,
+): Promise<PersistResult<BrandingView>> {
+	if (!name.trim()) return { error: "产品名称不能为空" };
+	if (editor.urlError || editor.uploadError) return { error: editor.urlError ?? editor.uploadError };
+	try {
+		const saved = await saveBrand(name.trim(), editor);
+		return { saved, note: "品牌已保存，员工端刷新后生效。" };
+	} catch (error) {
+		return { error: errorText(error) };
+	}
+}
+
+async function persistWebhook(publicUrl: string): Promise<PersistResult<WebhookSettingsView>> {
+	const invalid = endpointError(publicUrl);
+	if (!invalid) {
+		try {
+			const saved = await adminApi.webhook.update(publicUrl.trim());
+			return { saved, ...(saved.status === "active" ? { note: "回调地址已登记。" } : {}) };
+		} catch (error) {
+			return { error: errorText(error) };
+		}
+	}
+	return { error: invalid };
+}
+
+async function saveBrandSection(
+	name: string,
+	editor: ReturnType<typeof useLogoEditor>,
+	apply: (saved: BrandingView) => void,
+	fail: (message: string) => void,
+) {
+	const result = await persistBrand(name, editor);
+	if (result.error) fail(result.error);
+	if (!result.saved) return;
+	apply(result.saved);
+	return result.note;
+}
+
+async function saveWebhookSection(
+	publicUrl: string,
+	apply: (saved: WebhookSettingsView) => void,
+	fail: (message: string) => void,
+) {
+	const result = await persistWebhook(publicUrl);
+	if (result.error) fail(result.error);
+	if (!result.saved) return;
+	apply(result.saved);
+	return result.note;
+}
+
+function SettingsForm({
+	brand,
+	webhook,
 	canWrite,
 	readOnly,
-	onSaved,
-	onDirty,
+	onBrandSaved,
+	onWebhookSaved,
 }: {
-	initial: BrandingView;
+	brand: BrandingView;
+	webhook: WebhookSettingsView;
 	canWrite: boolean;
 	readOnly: boolean;
-	onSaved: () => void;
-	onDirty: () => void;
+	onBrandSaved: () => void;
+	onWebhookSaved: () => void;
 }) {
-	const [productName, setProductName] = useState(initial.productName);
-	const editor = useLogoEditor(initial.logoUrl, onDirty);
-	const save = useAdminMutation(async () => {
-		const name = productName.trim();
-		if (editor.mode === "upload") {
-			if (editor.file) {
-				await adminApi.branding.uploadLogo(editor.file);
-				return adminApi.branding.update({ productName: name });
-			}
-			return adminApi.branding.update({ productName: name, ...(editor.removeLogo ? { logoUrl: null } : {}) });
-		}
-		return adminApi.branding.update({ productName: name, logoUrl: editor.logoUrl.trim() || null });
-	});
-	const nameError = productName.trim() ? undefined : "产品名称不能为空";
-	const invalid = Boolean(nameError || editor.urlError || editor.uploadError);
-	const disabled = !canWrite || save.pending;
-	const submit = () => {
-		if (!canWrite || save.pending || invalid) return;
-		void save.run().then(() => onSaved());
+	const [productName, setProductName] = useState(brand.productName);
+	const [nameBaseline, setNameBaseline] = useState(brand.productName);
+	const [publicUrl, setPublicUrl] = useState(webhook.publicUrl ?? "");
+	const [webhookBase, setWebhookBase] = useState(webhook);
+	const [brandError, setBrandError] = useState<string>();
+	const [webhookError, setWebhookError] = useState<string>();
+	const [notice, setNotice] = useState<string>();
+	const [pending, setPending] = useState(false);
+	const [probing, setProbing] = useState(false);
+	const editor = useLogoEditor(brand.logoUrl);
+	const test = useAdminMutation(() => adminApi.webhook.test());
+	const nameDirty = productName.trim() !== nameBaseline;
+	const webhookDirty = normalizeEndpoint(publicUrl) !== normalizeEndpoint(webhookBase.publicUrl ?? "");
+	const dirty = nameDirty || editor.dirty || webhookDirty;
+	const testing = test.pending || probing;
+	const disabled = !canWrite || pending || testing;
+	const submit = async () => {
+		if (disabled || !dirty) return;
+		setPending(true);
+		setBrandError(undefined);
+		setWebhookError(undefined);
+		setNotice(undefined);
+		const brandNote =
+			nameDirty || editor.dirty
+				? await saveBrandSection(
+						productName,
+						editor,
+						(saved) => {
+							setProductName(saved.productName);
+							setNameBaseline(saved.productName);
+							editor.restore(saved.logoUrl);
+							onBrandSaved();
+						},
+						setBrandError,
+					)
+				: undefined;
+		const webhookNote = webhookDirty
+			? await saveWebhookSection(
+					publicUrl,
+					(saved) => {
+						setPublicUrl(saved.publicUrl ?? "");
+						setWebhookBase(saved);
+						onWebhookSaved();
+					},
+					setWebhookError,
+				)
+			: undefined;
+		const notes = [brandNote, webhookNote].filter((note) => note);
+		if (notes.length > 0) setNotice(notes.join(""));
+		setPending(false);
 	};
 	return (
 		<form
-			className="max-w-2xl space-y-6"
+			className="max-w-2xl space-y-8"
 			onSubmit={(event) => {
 				event.preventDefault();
-				submit();
+				void submit();
 			}}
 		>
-			<div className="space-y-2">
-				<label htmlFor="branding-product-name" className="text-sm font-medium">
-					产品名称
-				</label>
-				<Input
-					id="branding-product-name"
-					aria-label="产品名称"
-					value={productName}
-					maxLength={60}
-					showCount
-					status={nameError ? "error" : undefined}
-					disabled={disabled}
-					onChange={(event) => {
-						setProductName(event.target.value);
-						onDirty();
-					}}
+			<div className="space-y-6">
+				<h2 className="text-base font-semibold">品牌配置</h2>
+				<div className="space-y-2">
+					<label htmlFor="branding-product-name" className="text-sm font-medium">
+						产品名称
+					</label>
+					<Input
+						id="branding-product-name"
+						aria-label="产品名称"
+						value={productName}
+						maxLength={60}
+						showCount
+						status={!productName.trim() ? "error" : undefined}
+						disabled={disabled}
+						onChange={(event) => {
+							setProductName(event.target.value);
+							setNotice(undefined);
+						}}
+					/>
+					{productName.trim() ? null : <span className="block text-xs text-red-600">产品名称不能为空</span>}
+				</div>
+				<LogoFields editor={editor} disabled={disabled} />
+				<BrandPreview
+					key={`${productName}:${editor.previewUrl ?? ""}`}
+					productName={productName}
+					logoUrl={editor.previewUrl}
 				/>
-				{nameError ? <span className="block text-xs text-red-600">{nameError}</span> : null}
+				{brandError ? <Alert type="error" showIcon title="品牌保存失败" description={brandError} /> : null}
 			</div>
-			<LogoFields editor={editor} disabled={disabled} />
-			<BrandPreview
-				key={`${productName}:${editor.previewUrl ?? ""}`}
-				productName={productName}
-				logoUrl={editor.previewUrl}
+			<WebhookFields
+				value={publicUrl}
+				saved={webhookBase}
+				dirty={webhookDirty}
+				disabled={disabled}
+				testing={testing}
+				error={webhookError || test.error || undefined}
+				onChange={(next) => {
+					setPublicUrl(next);
+					setWebhookError(undefined);
+					setNotice(undefined);
+				}}
+				onTest={() => {
+					const invalid = endpointError(publicUrl);
+					if (invalid) {
+						setWebhookError(invalid);
+						return;
+					}
+					if (!webhookDirty && webhookBase.status !== "unconfigured") {
+						void test.run().then((saved) => {
+							setWebhookBase(saved);
+							setWebhookError(saved.status === "error" ? saved.detail : undefined);
+						});
+						return;
+					}
+					setProbing(true);
+					setWebhookError(undefined);
+					void adminApi.webhook
+						.update(publicUrl.trim())
+						.then((saved) => {
+							setPublicUrl(saved.publicUrl ?? "");
+							setWebhookBase(saved);
+							setWebhookError(saved.status === "error" ? saved.detail : undefined);
+							onWebhookSaved();
+						})
+						.catch((error: unknown) => setWebhookError(errorText(error)))
+						.finally(() => setProbing(false));
+				}}
 			/>
-			{readOnly ? <Alert type="info" showIcon title="当前身份只读，不能修改品牌配置。" /> : null}
-			{save.error ? <Alert type="error" showIcon title="保存失败" description={save.error} /> : null}
+			{readOnly ? <Alert type="info" showIcon title="当前身份只读，不能修改配置。" /> : null}
+			{notice ? <Alert type="success" showIcon title={notice} /> : null}
 			<Space className="pt-1">
-				<Button type="primary" htmlType="submit" loading={save.pending} disabled={!canWrite || invalid}>
+				<Button type="primary" htmlType="submit" loading={pending} disabled={!canWrite || !dirty || test.pending}>
 					保存
 				</Button>
 				<Button
 					disabled={disabled}
 					onClick={() => {
-						setProductName(initial.productName);
-						editor.reset();
+						setProductName(nameBaseline);
+						setPublicUrl(webhookBase.publicUrl ?? "");
+						editor.restore();
+						setBrandError(undefined);
+						setWebhookError(undefined);
+						setNotice(undefined);
 					}}
 				>
 					重置
@@ -309,42 +482,39 @@ function BrandingForm({
 	);
 }
 
-/** 管理端维护员工端名称与 Logo；默认上传，也可切换为 URL。保存后员工端刷新 /api/config 生效。 */
+/** 管理端配置：品牌与回调端点分块展示，页底统一保存。 */
 export function BrandingPage() {
-	const query = useAdminQuery("branding:config", (signal) => adminApi.branding.get(signal));
+	const brand = useAdminQuery("branding:config", (signal) => adminApi.branding.get(signal));
+	const webhook = useAdminQuery("webhook:settings", (signal) => adminApi.webhook.get(signal));
 	const identity = useAdminQuery("branding:identity", (signal) => getAdminClient().identity(signal));
-	const [saved, setSaved] = useState(false);
-	if (query.error)
+	const reload = () => {
+		void brand.refresh();
+		void webhook.refresh();
+	};
+	if (brand.error || webhook.error)
 		return (
 			<Result
 				status="error"
-				title="品牌配置加载失败"
-				subTitle={query.error}
+				title="配置加载失败"
+				subTitle={brand.error || webhook.error}
 				extra={
-					<Button aria-label="重试" onClick={() => void query.refresh()}>
+					<Button aria-label="重试" onClick={reload}>
 						重试
 					</Button>
 				}
 			/>
 		);
-	if (!query.data) return <Skeleton active paragraph={{ rows: 5 }} />;
+	if (!brand.data || !webhook.data) return <Skeleton active paragraph={{ rows: 8 }} />;
 	return (
-		<section aria-label="品牌配置" className="space-y-6">
-			<InnerLayout
-				title="品牌配置"
-				description="配置员工端左侧导航顶部的产品名称与 Logo。默认上传图片，也可切换为填写 URL。保存后员工端下次加载配置时生效。"
-			/>
-			{saved ? <Alert type="success" showIcon title="已保存，员工端刷新后生效。" /> : null}
-			<BrandingForm
-				key={`${query.data.updatedAt}:${query.data.productName}:${query.data.logoUrl ?? ""}`}
-				initial={query.data}
+		<section aria-label="配置" className="space-y-6">
+			<InnerLayout title="配置" description="员工端的产品名称、Logo，以及百炼回调的端点 URL。" />
+			<SettingsForm
+				brand={brand.data}
+				webhook={webhook.data}
 				canWrite={identity.data?.role === "admin"}
 				readOnly={identity.data?.role === "auditor"}
-				onDirty={() => setSaved(false)}
-				onSaved={() => {
-					setSaved(true);
-					void query.refresh();
-				}}
+				onBrandSaved={() => void brand.refresh()}
+				onWebhookSaved={() => void webhook.refresh()}
 			/>
 		</section>
 	);

@@ -39,6 +39,14 @@ import { adminRequest } from "./kit.ts";
 
 export { adminToken, setAdminToken } from "./auth.ts";
 
+export interface WebhookSettingsView {
+	publicUrl?: string;
+	callbackUrl?: string;
+	status: "unconfigured" | "active" | "error";
+	detail?: string;
+	checkedAt?: string;
+}
+
 /** 与管理请求共用已解析的后端地址及动态管理员身份。 */
 export function getAdminClient() {
 	return createAdminClient({ request: adminRequest() });
@@ -96,6 +104,19 @@ export const adminApi = {
 	audit: {
 		list: (query: AuditLogsQuery, signal?: AbortSignal) =>
 			request<AuditLogsPage>(`/api/admin/audit?limit=${query.limit}&offset=${query.offset}`, { signal }),
+	},
+	webhook: {
+		get: (signal?: AbortSignal) =>
+			request<{ data: WebhookSettingsView }>("/api/admin/webhook", { signal }).then((result) => result.data),
+		update: (publicUrl: string) =>
+			request<{ data: WebhookSettingsView }>("/api/admin/webhook", {
+				method: "PUT",
+				body: JSON.stringify({ publicUrl }),
+			}).then((result) => result.data),
+		test: () =>
+			request<{ data: WebhookSettingsView }>("/api/admin/webhook/test", { method: "POST" }).then(
+				(result) => result.data,
+			),
 	},
 	branding: {
 		get: (signal?: AbortSignal) =>

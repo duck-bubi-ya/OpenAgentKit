@@ -49,6 +49,7 @@ import { createSdkPresetPackGateway } from "./sdk-preset-pack-resources.ts";
 import { createSdkRemoteSkillGateway } from "./sdk-remote-skills.ts";
 import { createSdkVaultGateway } from "./sdk-vaults.ts";
 import { withSendRejection } from "./send-error.ts";
+import { listedMessageFromProvider } from "./session-messages.ts";
 import { sessionUsageFromAttributes } from "./session-usage.ts";
 import type { GatewaySendInput, GatewaySessionInfo, ProviderGateway } from "./types.ts";
 import { createYamlDraftGateway } from "./yaml-draft-gateway.ts";
@@ -269,6 +270,35 @@ async function safeThreadQuery<T>(action: () => Promise<T>, signal?: AbortSignal
  * 真实 Provider gateway：资源与会话使用 SDK 公开面，建会话窄入口见 bailian-rest.ts。
  * 不碰 internal。形状差异用防御性读取吸收，并由 live 验证兜底（docs/validation.md）。
  */
+function messageListError(error: unknown): KitError {
+	if (error instanceof KitError) return error;
+	if (error instanceof ApiError && ApiError.isNotFound(error)) return new KitError("not_found", "会话不存在");
+	const refused = error instanceof ApiError && error.statusCode < 500 && error.statusCode !== 429;
+	return new KitError("provider_error", "列出会话消息失败，请稍后重试", { retryable: !refused });
+}
+
+async function readMessagePage(
+	context: Parameters<typeof listSessionEvents>[0],
+	sessionId: string,
+	options: { pageToken?: string; limit?: number },
+) {
+	const page = await listSessionEvents(context, sessionId, {
+		order: "asc",
+		limit: options.limit ?? 100,
+		...(options.pageToken ? { page_token: options.pageToken } : {}),
+	});
+	if (page.has_more && !page.next_page) {
+		throw new KitError("provider_error", "事件历史缺少下一页游标", { retryable: true });
+	}
+	return {
+		messages: page.events.flatMap((event) => {
+			const message = listedMessageFromProvider(event);
+			return message ? [message] : [];
+		}),
+		next_page_token: page.next_page ?? null,
+	};
+}
+
 export function createSdkGateway(credentials: BailianCredentials): ProviderGateway {
 	const toContract = (event: ProviderSessionEvent) =>
 		removeCredential(toContractEvent(event), credentials.apiKey) as SessionEvent;
@@ -419,6 +449,13 @@ export function createSdkGateway(credentials: BailianCredentials): ProviderGatew
 			});
 			if (page.has_more && !page.next_page) throw new KitError("provider_error", "事件历史缺少下一页游标");
 			return { events: page.events.map(toContract), next_page_token: page.next_page ?? null };
+		},
+		async listMessagePage(sessionId, options = {}) {
+			try {
+				return await readMessagePage(await ctx(), sessionId, options);
+			} catch (error) {
+				throw messageListError(error);
+			}
 		},
 		async listThreads(sessionId, options = {}) {
 			return safeThreadQuery(async () => {

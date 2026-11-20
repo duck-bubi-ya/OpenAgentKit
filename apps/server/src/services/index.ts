@@ -3,6 +3,7 @@ import type { ServerConfig } from "../config.ts";
 import { createMockGateway, type MockTelemetrySource } from "../gateway/mock.ts";
 import { createSdkGateway } from "../gateway/sdk.ts";
 import type { ProviderGateway } from "../gateway/types.ts";
+import { SessionMessageScheduler } from "../schedulers/session-message-scheduler/index.ts";
 import { createAuditLog } from "../store/audit.ts";
 import { createBrandingStore } from "../store/branding.ts";
 import { createCatalogStore } from "../store/catalog.ts";
@@ -16,6 +17,8 @@ import { createPresetPackStore } from "../store/preset-packs.ts";
 import { createQuotaStore } from "../store/quota.ts";
 import { createResourceDraftStore } from "../store/resource-drafts.ts";
 import { createSessionDeletionStore } from "../store/session-deletions.ts";
+import { createSessionMessageJobStore } from "../store/session-message-jobs.ts";
+import { createSessionMessageStore } from "../store/session-messages.ts";
 import { createSessionUsageStore } from "../store/session-usage.ts";
 import { createSessionIndex } from "../store/sessions.ts";
 import { createTemplateStore } from "../store/templates.ts";
@@ -35,6 +38,7 @@ import { createPresetPackService } from "./preset-packs.ts";
 import { createQuotaService } from "./quota.ts";
 import { createRateLimiter } from "./rate-limit.ts";
 import { createResourceDraftService } from "./resource-drafts.ts";
+import { createSessionMessageSync } from "./session-message-sync.ts";
 import { createSessionService } from "./sessions.ts";
 import { createTemplateService } from "./templates.ts";
 import { createUsageLimitService } from "./usage-limits.ts";
@@ -143,9 +147,22 @@ export function createKitServices(
 		gate,
 		audit,
 	});
+	const sessionMessageSync = createSessionMessageSync({
+		jobs: createSessionMessageJobStore(database),
+		messages: createSessionMessageStore(database),
+		gateway,
+	});
+	const scheduler = new SessionMessageScheduler({
+		intervalMs: 2_000,
+		recover: () => sessionMessageSync.recover(),
+		runOnce: () => sessionMessageSync.runOnce(),
+	});
 	return {
 		config,
-		close: () => database.close(),
+		close: async () => {
+			await scheduler.stop();
+			await database.close();
+		},
 		branding,
 		gateway,
 		buffers,
@@ -156,6 +173,8 @@ export function createKitServices(
 		gate,
 		runner,
 		sessions,
+		sessionMessageSync,
+		scheduler,
 		quota,
 		usageLimits,
 		members,

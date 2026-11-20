@@ -324,6 +324,7 @@ export function createSessionUsageStore(db: StoreDatabase) {
 					sessionId,
 				);
 				await db.run("DELETE FROM kit_sessions WHERE session_id = ?", sessionId);
+				await db.run("DELETE FROM kit_session_messages WHERE session_id = ?", sessionId);
 				await db.run(
 					"UPDATE kit_session_deletions SET stage = 'deleted', updated_at = ? WHERE session_id = ?",
 					new Date().toISOString(),

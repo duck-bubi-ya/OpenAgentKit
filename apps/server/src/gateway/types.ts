@@ -29,6 +29,7 @@ import type {
 	SessionUsage,
 } from "@openagentkit/sdk/protocol";
 import type { ModelUsagePage, ModelUsageRequest, ToolUsagePage, ToolUsageRequest } from "@openagentpack/sdk";
+import type { ListedSessionMessage } from "./session-messages.ts";
 import type { YamlDraftStorage } from "./yaml-draft-document.ts";
 
 export interface GatewaySessionInfo {
@@ -164,6 +165,11 @@ export interface ProviderGateway {
 		sessionId: string,
 		options?: { afterId?: string; pageToken?: string; limit?: number; signal?: AbortSignal },
 	): Promise<{ events: SessionEvent[]; next_page_token: string | null }>;
+	/** 列出事件的原始消息页。不经过快照转换，供终态副本写入。 */
+	listMessagePage(
+		sessionId: string,
+		options?: { pageToken?: string; limit?: number },
+	): Promise<{ messages: ListedSessionMessage[]; next_page_token: string | null }>;
 	listThreads(
 		sessionId: string,
 		options?: { pageToken?: string; limit?: number; signal?: AbortSignal },

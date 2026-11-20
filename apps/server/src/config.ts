@@ -41,6 +41,12 @@ export interface ServerConfig {
 	pingTimeoutMs: number;
 	/** 对外公开 base url；空串表示「与访问者同源」（反代/壳注入场景） */
 	publicBaseUrl: string;
+	/** 运行本服务的对外入口。管理端保存的地址优先；环境变量只在尚未登记时作为初次启动值。 */
+	webhookPublicUrl?: string;
+	/** 终态消息副本的签名密钥。环境变量只作测试覆盖；正式值保存在数据目录。不写入日志。 */
+	webhookSigningSecret?: string;
+	/** 已有签名密钥，并且配置了回调地址或对外公开地址。 */
+	sessionMessageSync: boolean;
 	/** 单文件上传上限（字节）。超限直接 400，避免把大文件读进内存。 */
 	uploadMaxBytes: number;
 	/** 普通 JSON 请求体上限（字节）；上传路由单独用 uploadMaxBytes。 */
@@ -208,6 +214,15 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
 	const database = parseDatabase(env);
 	const dataDir = resolve(env.KIT_DATA_DIR?.trim() || ".data");
 	mkdirSync(dataDir, { recursive: true });
+	const publicBaseUrl = (env.KIT_PUBLIC_BASE_URL ?? "").trim().replace(/\/+$/, "");
+	const webhookPublicUrl = env.KIT_WEBHOOK_PUBLIC_URL?.trim().replace(/\/+$/, "") || undefined;
+	const webhookSigningSecret = env.KIT_WEBHOOK_SIGNING_SECRET?.trim() || undefined;
+	if (webhookSigningSecret && !webhookPublicUrl && !publicBaseUrl) {
+		throw new Error("配置 KIT_WEBHOOK_SIGNING_SECRET 时必须同时配置 KIT_WEBHOOK_PUBLIC_URL 或 KIT_PUBLIC_BASE_URL");
+	}
+	if (webhookSigningSecret && !webhookSigningSecret.startsWith("whsec_")) {
+		throw new Error("KIT_WEBHOOK_SIGNING_SECRET 必须以 whsec_ 开头");
+	}
 
 	return {
 		port: Number(env.PORT?.trim() || 8787),
@@ -221,7 +236,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
 		resolvedGateway,
 		...(bailian ? { bailian } : {}),
 		confirmSecret: env.KIT_CONFIRM_SECRET?.trim() || randomBytes(24).toString("hex"),
-		publicBaseUrl: (env.KIT_PUBLIC_BASE_URL ?? "").trim().replace(/\/+$/, ""),
+		publicBaseUrl,
+		...(webhookPublicUrl ? { webhookPublicUrl } : {}),
+		...(webhookSigningSecret ? { webhookSigningSecret } : {}),
+		sessionMessageSync: Boolean(webhookSigningSecret && (webhookPublicUrl || publicBaseUrl)),
 		adminPrincipals: parseAdminPrincipals(env),
 		evalWorkspaces: parseEvalWorkspaces(env),
 		...(() => {
@@ -237,5 +255,6 @@ export function redactSecrets(input: string): string {
 	return input
 		.replace(/(sk-[A-Za-z0-9_-]{6,})/g, "sk-***")
 		.replace(/(Bearer\s+)[A-Za-z0-9._-]{8,}/gi, "$1***")
-		.replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, "$1***");
+		.replace(/(api[_-]?key["']?\s*[:=]\s*["']?)[A-Za-z0-9._-]{8,}/gi, "$1***")
+		.replace(/whsec_[A-Za-z0-9+/=_-]{8,}/g, "whsec_***");
 }

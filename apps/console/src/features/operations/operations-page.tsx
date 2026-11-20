@@ -16,6 +16,7 @@ const actionLabels: Record<string, string> = {
 	"catalog.list": "上架智能体",
 	"catalog.unlist": "下架智能体",
 	"branding.update": "更新品牌配置",
+	"webhook.update": "更新回调地址",
 };
 
 function detailOf(row: AuditLogView): { name?: string; version?: number } {
@@ -65,7 +66,7 @@ export function OperationsPage() {
 	return (
 		<section aria-label="操作日志" className="space-y-4">
 			<p className="text-sm text-neutral-500">
-				仅记录当前管理员对智能体的新建、编辑、删除、上架、下架及员工端品牌配置的修改。
+				仅记录当前管理员对智能体的新建、编辑、删除、上架、下架，以及员工端品牌和回调地址的修改。
 			</p>
 			{logs.error ? (
 				<Result

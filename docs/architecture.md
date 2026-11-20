@@ -324,13 +324,15 @@ apps/server/src/
   gateway/          ProviderGateway 抽象 + sdk.ts（真实）+ mock.ts（演示与测试）
                     + bailian-rest.ts（建会话挂附件的窄口子，见其文件头与 docs/research/）
                     + sdk-context.ts（ProjectRuntimeContext 装配，live 脚本共用）
-  services/         identity（anonymous / jwt / admin 多令牌+角色）/ sessions / session-streams /
+  schedulers/       进程内循环。session-message-scheduler 只负责启动、停止和叫醒，
+                    一次只跑一条；领取和写入仍经 services / store
+  services/         identity（anonymous / jwt / admin 多令牌+角色）/ sessions / session-message-sync / session-streams /
                     event-buffer / tool-approvals /
                     attachments（挂载路径解析）/ confirm-gate / rate-limit / metrics /
                     catalog / templates（本地模版资源复核、保存与上架确认）/ project / operations / members（本地账号创建与密码派生）/
                     member-usage（累计采集）/ session-deletion + session-mutations（删除协调与写入保护）
   store/            异步数据库接口、SQLite / MySQL / PostgreSQL 适配、共享结构与迁移生成、DAO（catalog / templates / members / sessions / quota / operations / audit /
-                    session-usage 数值快照 / session-deletions 阶段）
+                    session-usage 数值快照 / session-deletions 阶段 / session-message-jobs / session-messages）
   routes/           kit/*（数据面）admin/*（控制面）config / healthz
 ```
 
@@ -342,7 +344,8 @@ apps/server/src/
    `docs/research/sdk-session-runtime.md`，改 gateway 前必读。
 2. **事件不落库**。Kit 数据库存 catalog、已保存模版配置目录与不可变配置版本、成员目录、session 本地索引、成员累计用量数值快照、
    删除阶段、月度限额数值增量与请求幂等索引、兼容 Credits 账本、operation 与审计。快照只含归属与运营字段，不含事件、消息正文或
-   附件字节。成员密码仅存随机盐与 scrypt 派生值，不保存明文；Provider 凭据不落库。
+   附件字节。ADR-0028 是例外：默认关闭，只在终态后保存列出事件接口里已经完成的消息，不替代实时流。
+   成员密码仅存随机盐与 scrypt 派生值，不保存明文；Provider 凭据不落库。
 3. **凭据不出服务端**：`CredentialResolver` 只在 gateway 内部使用；错误与日志脱敏。
 4. **破坏性动作两段式**：`plan` 发一次性 `confirmationToken`，执行请求必须回传
    （字段名是 snake_case：`plan_id` / `confirm_token`）；上下架同样走这条闸门。

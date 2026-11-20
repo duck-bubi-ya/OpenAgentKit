@@ -24,6 +24,7 @@ import type { MockDraftPublisher, DraftPublishedResource as MockPublishedResourc
 type MockPublishedAgentRoster = Parameters<MockDraftPublisher>[1][number];
 
 import { createMockRemoteSkillGateway } from "./mock-remote-skills.ts";
+import type { ListedSessionMessage } from "./session-messages.ts";
 import type { GatewaySendInput, GatewaySessionInfo, ProviderGateway } from "./types.ts";
 import { createYamlDraftGateway } from "./yaml-draft-gateway.ts";
 
@@ -811,6 +812,32 @@ export function createMockGateway(
 			return {
 				events: snapshots.slice(Math.max(0, start), end),
 				next_page_token: end < snapshots.length ? `page:${end}` : null,
+			};
+		},
+		async listMessagePage(sessionId, options = {}) {
+			const session = sessions.get(sessionId);
+			if (!session) throw new KitError("not_found", "会话不存在");
+			const messages = latestEvents(session.events).flatMap((event) => {
+				if (!event.event_id) return [];
+				if (event.type !== "message" && event.type !== "tool_use" && event.type !== "tool_result") return [];
+				const message: ListedSessionMessage = {
+					id: event.event_id,
+					object: "message",
+					status: "completed",
+					role: event.role ?? "assistant",
+					type: event.type,
+					created_at: event.created_at ?? new Date(0).toISOString(),
+					content: event.content ?? [],
+					metadata: event.metadata ?? null,
+					is_error: null,
+				};
+				return [message];
+			});
+			const start = options.pageToken ? Number(options.pageToken.slice(5)) : 0;
+			const end = Math.max(0, start) + (options.limit ?? 100);
+			return {
+				messages: messages.slice(Math.max(0, start), end),
+				next_page_token: end < messages.length ? `page:${end}` : null,
 			};
 		},
 		async listThreads(sessionId, options = {}) {

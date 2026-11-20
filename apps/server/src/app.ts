@@ -26,6 +26,7 @@ import { registerPresetPackRoutes } from "./routes/preset-packs.ts";
 import { registerResourceDraftRoutes } from "./routes/resource-drafts.ts";
 import { registerTemplateRoutes } from "./routes/templates.ts";
 import { registerUsageLimitRoutes } from "./routes/usage-limits.ts";
+import { registerWebhookRoutes } from "./routes/webhooks.ts";
 import { createOriginMatcher, DEFAULT_CORS_ORIGINS } from "./services/cors.ts";
 import { resolveAdminIdentity, resolveIdentity } from "./services/identity.ts";
 
@@ -54,7 +55,8 @@ export function createApp(services: KitServices) {
 		path === "/openapi.json" ||
 		path === "/docs" ||
 		path === "/api/kit/auth/login" ||
-		path === "/api/kit/auth/logout";
+		path === "/api/kit/auth/logout" ||
+		path === "/api/kit/webhooks/bailian";
 	const READ_ONLY_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 	app.use("*", async (c, next) => {
@@ -145,6 +147,7 @@ export function createApp(services: KitServices) {
 
 	registerMetaRoutes(app);
 	registerKitRoutes(app);
+	registerWebhookRoutes(app);
 	registerMemberAuthRoutes(app);
 	registerAdminRoutes(app);
 	registerPresetPackRoutes(app);

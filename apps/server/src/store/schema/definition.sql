@@ -453,3 +453,53 @@ CREATE UNIQUE INDEX "idx_usage_turns_idempotency" ON "usage_turns" ("session_id"
 CREATE INDEX "idx_usage_turns_month_agent" ON "usage_turns" ("month", "agent_slug");
 
 CREATE INDEX "idx_usage_turns_subject_month" ON "usage_turns" ("subject_id", "month");
+
+CREATE TABLE "kit_session_message_jobs" (
+  "job_id" TEXT,
+  "webhook_id" TEXT NOT NULL,
+  "session_id" TEXT NOT NULL,
+  "trigger_type" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "attempts" INTEGER NOT NULL DEFAULT 0,
+  "available_at" TEXT NOT NULL,
+  "lease_until" TEXT,
+  "generation" INTEGER NOT NULL DEFAULT 0,
+  "merged_into_job_id" TEXT,
+  "page_token" TEXT,
+  "pages_written" INTEGER NOT NULL DEFAULT 0,
+  "stored_bytes" INTEGER NOT NULL DEFAULT 0,
+  "error_code" TEXT,
+  "created_at" TEXT NOT NULL,
+  "updated_at" TEXT NOT NULL,
+  PRIMARY KEY ("job_id"),
+  UNIQUE ("webhook_id"),
+  CHECK (status IN ('queued', 'running', 'succeeded', 'failed', 'skipped', 'merged'))
+);
+
+CREATE INDEX "idx_session_message_jobs_due" ON "kit_session_message_jobs" ("status", "available_at", "created_at");
+
+CREATE INDEX "idx_session_message_jobs_session" ON "kit_session_message_jobs" ("session_id", "status");
+
+CREATE TABLE "kit_session_messages" (
+  "session_id" TEXT NOT NULL,
+  "event_id" TEXT NOT NULL,
+  "object" TEXT NOT NULL,
+  "status" TEXT NOT NULL,
+  "role" TEXT NOT NULL,
+  "type" TEXT NOT NULL,
+  "created_at" TEXT NOT NULL,
+  "is_error" INTEGER,
+  "content_json" TEXT NOT NULL,
+  "metadata_json" TEXT,
+  "subject_id" TEXT NOT NULL,
+  "purpose" TEXT NOT NULL,
+  "stored_bytes" INTEGER NOT NULL,
+  "last_job_id" TEXT NOT NULL,
+  "synced_at" TEXT NOT NULL,
+  PRIMARY KEY ("session_id", "event_id"),
+  CHECK (purpose IN ('experience', 'admin_debug'))
+);
+
+CREATE INDEX "idx_session_messages_created" ON "kit_session_messages" ("session_id", "created_at");
+
+CREATE INDEX "idx_session_messages_subject" ON "kit_session_messages" ("subject_id");
