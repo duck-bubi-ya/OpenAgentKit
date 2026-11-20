@@ -54,6 +54,18 @@ describe("管理端页面深链", () => {
 		expect(consoleRouteTab(parse("/templates/t1/edit"))).toBe("template-list");
 		expect(consoleRouteTab(parse("/members/m1/usage?from=usage"))).toBe("usage");
 	});
+	it("同域 /console 前缀可往返，不把前缀当成页面路径", () => {
+		const mount = "/console";
+		const href = consoleRouteHref({ page: "template-detail", id: "t1", tab: "debug" }, base, mount);
+		expect(new URL(href, base).pathname).toBe("/console/templates/t1/debug");
+		expect(parseConsoleRoute(new URL(href, base), mount)).toEqual({
+			page: "template-detail",
+			id: "t1",
+			tab: "debug",
+		});
+		expect(parseConsoleRoute(new URL("/console", base), mount).page).toBe("template-list");
+		expect(parseConsoleRoute(new URL("/console/", base), mount).page).toBe("template-list");
+	});
 	it.each(["/groups", "/groups/", "/groups/g1", "/groups/%E0%A4%A"])(
 		"旧用户组入口回到成员列表并清除资源定位：%s",
 		(path) => {

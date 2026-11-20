@@ -101,9 +101,28 @@ function readRouteQuery(route: ConsoleRoute, params: URLSearchParams): ConsoleRo
 	}
 }
 
-export function parseConsoleRoute(location: Pick<Location, "pathname" | "search">): ConsoleRoute {
+/** 部署前缀。根路径为 ""；同域挂到 `/console` 时为 `/console`。 */
+export function consoleMount(base = import.meta.env.BASE_URL): string {
+	const trimmed = (base || "/").trim().replace(/\/+$/, "");
+	if (trimmed === "" || trimmed === "/") return "";
+	return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+function stripMount(pathname: string, mount: string): string {
+	if (mount && (pathname === mount || pathname.startsWith(`${mount}/`))) {
+		const rest = pathname.slice(mount.length);
+		return rest === "" ? "/" : rest;
+	}
+	return pathname;
+}
+
+export function parseConsoleRoute(
+	location: Pick<Location, "pathname" | "search">,
+	mount = consoleMount(),
+): ConsoleRoute {
 	try {
-		return readRouteQuery(matchPath(location.pathname.replace(/\/+$/, "")), new URLSearchParams(location.search));
+		const pathname = stripMount(location.pathname, mount).replace(/\/+$/, "") || "/";
+		return readRouteQuery(matchPath(pathname), new URLSearchParams(location.search));
 	} catch {
 		return { page: "template-list" };
 	}
@@ -132,9 +151,10 @@ function routePath(route: ConsoleRoute): string {
 	}
 }
 
-export function consoleRouteHref(route: ConsoleRoute, base = window.location.href): string {
+export function consoleRouteHref(route: ConsoleRoute, base = window.location.href, mount = consoleMount()): string {
 	const url = new URL(base);
-	url.pathname = routePath(route);
+	const path = routePath(route);
+	url.pathname = mount ? `${mount}${path}` : path;
 	for (const key of ROUTE_KEYS) url.searchParams.delete(key);
 	for (const key of ["version", "step", "preset", "from", "workspace", "run", "limits"] as const) {
 		if (route[key] !== undefined) url.searchParams.set(key, String(route[key]));

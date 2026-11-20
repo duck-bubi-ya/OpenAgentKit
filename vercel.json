@@ -3,7 +3,14 @@
   "services": {
     "console": {
       "root": "apps/console",
-      "framework": "vite"
+      "framework": "vite",
+      "installCommand": "cd ../.. && pnpm install",
+      "buildCommand": "cd ../.. && KIT_CONSOLE_BASE=/console/ pnpm --filter console... build",
+      "rewrites": [
+        { "source": "/console/assets/(.*)", "destination": "/assets/$1" },
+        { "source": "/console", "destination": "/index.html" },
+        { "source": "/console/(.*)", "destination": "/index.html" }
+      ]
     },
     "server": {
       "root": "apps/server",
@@ -36,8 +43,13 @@
       }
     },
     {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": { "pre": "console." } }],
+      "source": "/console",
+      "destination": {
+        "service": "console"
+      }
+    },
+    {
+      "source": "/console/(.*)",
       "destination": {
         "service": "console"
       }
