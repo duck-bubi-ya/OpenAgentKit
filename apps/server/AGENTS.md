@@ -56,6 +56,9 @@
 
 ## 修改步骤
 
+接入或切换数据库时，按 [kit-database](../../assets/skills/kit-database/SKILL.md) 核对现有配置和目标库。
+启动后通过日志中的 `db=` 和 `/healthz` 确认后端与服务状态。需要核对迁移时，读取目标库的 `_kit_migrations`。
+
 1. 在 `docs/interfaces.md` 核对或登记 op，确认身份、Schema、错误与恢复语义。
 2. 路由只负责边界；服务组织业务，gateway 处理 Provider 合同，store 处理事务与迁移。
 3. 改后端接口运行 `pnpm gen:openapi`，检查服务端 spec 与 SDK 生成类型。
