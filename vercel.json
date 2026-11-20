@@ -10,7 +10,7 @@
       "framework": "hono",
       "entrypoint": "src/vercel.ts",
       "installCommand": "cd ../.. && pnpm install",
-      "buildCommand": "cd ../.. && pnpm --filter \"@openagentpack/kit-server...\" build",
+      "buildCommand": "cd ../.. && rm -rf apps/server/dist && pnpm --filter \"@openagentpack/kit-server^...\" build && pnpm --filter @openagentpack/kit-server db:render",
       "functions": {
         "src/vercel.ts": {
           "includeFiles": "src/store/schema/history/**"
