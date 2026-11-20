@@ -7,7 +7,10 @@
     },
     "server": {
       "root": "apps/server",
-      "framework": "hono"
+      "framework": "hono",
+      "entrypoint": "src/vercel.ts",
+      "installCommand": "cd ../.. && pnpm install",
+      "buildCommand": "cd ../.. && pnpm --filter \"@openagentpack/kit-server...\" build"
     },
     "web": {
       "root": "apps/web",
@@ -19,6 +22,19 @@
       "source": "/api/(.*)",
       "destination": {
         "service": "server"
+      }
+    },
+    {
+      "source": "/healthz",
+      "destination": {
+        "service": "server"
+      }
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": { "pre": "console." } }],
+      "destination": {
+        "service": "console"
       }
     },
     {
