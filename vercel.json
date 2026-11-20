@@ -5,12 +5,7 @@
       "root": "apps/console",
       "framework": "vite",
       "installCommand": "cd ../.. && pnpm install",
-      "buildCommand": "cd ../.. && KIT_CONSOLE_BASE=/console/ pnpm --filter console... build",
-      "rewrites": [
-        { "source": "/console/assets/(.*)", "destination": "/assets/$1" },
-        { "source": "/console", "destination": "/index.html" },
-        { "source": "/console/(.*)", "destination": "/index.html" }
-      ]
+      "buildCommand": "cd ../.. && KIT_CONSOLE_BASE=/console/ pnpm --filter console... build"
     },
     "server": {
       "root": "apps/server",
@@ -45,13 +40,15 @@
     {
       "source": "/console",
       "destination": {
-        "service": "console"
+        "service": "console",
+        "path": "/"
       }
     },
     {
-      "source": "/console/(.*)",
+      "source": "/console/:path*",
       "destination": {
-        "service": "console"
+        "service": "console",
+        "path": "/:path*"
       }
     },
     {
